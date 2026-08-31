@@ -18,35 +18,25 @@ export interface NavSection {
 /** Sidebar structure — flat sections, like the reference dashboard. */
 export const NAV: NavSection[] = [
   {
-    id: "main",
-    items: [
-      { label: "Dashboard", href: "/dashboard", icon: "home" },
-      { label: "Projects", href: "/projects", icon: "store" },
-    ],
+    id: "audience",
+    label: "Audience",
+    items: [{ label: "Users", href: "/users", icon: "users" }],
   },
   {
     id: "catalogue",
     label: "Catalogue",
-    items: [
-      { label: "Medias", href: "/medias", icon: "film" },
-      { label: "FAST channels", href: "/fast-channels", icon: "tv" },
-      { label: "External contributions", href: "/contributions", icon: "inbox" },
-      { label: "Casting", href: "/casting", icon: "user-circle" },
-    ],
+    items: [{ label: "Upload content", href: "/content/upload", icon: "upload" }],
   },
   {
-    id: "encoding",
-    label: "Encoding",
-    items: [
-      { label: "Encodings", href: "/encodings", icon: "gauge" },
-      { label: "Encoding profiles", href: "/encoding-profiles", icon: "sliders" },
-    ],
+    id: "site",
+    label: "Website",
+    items: [{ label: "Landing page", href: "/landing", icon: "globe" }],
   },
   {
     id: "organisation",
     label: "My organisation",
     items: [
-      { label: "Users", href: "/organisation/users", icon: "users" },
+      { label: "Team members", href: "/organisation/users", icon: "users" },
       { label: "Settings", href: "/organisation/settings", icon: "settings" },
       { label: "Plan & billing", href: "/organisation/billing", icon: "billing" },
     ],

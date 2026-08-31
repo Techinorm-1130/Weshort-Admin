@@ -1,7 +1,9 @@
 /* Typed API surface used by every screen. One function per backend endpoint. */
 
 import type {
+  ContentItem,
   Contribution,
+  LandingPage,
   Dashboard,
   EncodingJob,
   EncodingProfile,
@@ -14,6 +16,8 @@ import type {
   Person,
   Project,
   Taxonomies,
+  Viewer,
+  ViewerStats,
 } from "@/types";
 import { http } from "./http";
 
@@ -112,6 +116,56 @@ export const encodingApi = {
   updateProfile: (id: string, payload: Partial<EncodingProfile>) =>
     http.patch<EncodingProfile>(`/encoding-profiles/${id}`, payload),
   removeProfile: (id: string) => http.del<void>(`/encoding-profiles/${id}`),
+};
+
+/* -------------------------------- viewers ------------------------------- */
+
+/** Audience accounts. Extends ListQuery with the OTT-specific filters. */
+export interface ViewerQuery extends ListQuery {
+  plan?: string;
+  country?: string;
+  from?: string;
+  to?: string;
+}
+
+export const viewerApi = {
+  list: (q?: ViewerQuery) => http.get<Paginated<Viewer>>("/viewers", q as Record<string, unknown>),
+  get: (id: string) => http.get<Viewer>(`/viewers/${id}`),
+  stats: () => http.get<ViewerStats>("/viewers/stats"),
+  update: (id: string, payload: Partial<Viewer>) => http.patch<Viewer>(`/viewers/${id}`, payload),
+  remove: (id: string) => http.del<void>(`/viewers/${id}`),
+};
+
+/* -------------------------------- contents ------------------------------ */
+
+export const contentApi = {
+  list: (q?: ListQuery) => http.get<Paginated<ContentItem>>("/contents", q as Record<string, unknown>),
+  get: (id: string) => http.get<ContentItem>(`/contents/${id}`),
+  create: (payload: Partial<ContentItem>) => http.post<ContentItem>("/contents", payload),
+  update: (id: string, payload: Partial<ContentItem>) => http.patch<ContentItem>(`/contents/${id}`, payload),
+  publish: (id: string) => http.post<ContentItem>(`/contents/${id}/publish`),
+  remove: (id: string) => http.del<void>(`/contents/${id}`),
+};
+
+/* ---------------------------- landing builder --------------------------- */
+
+/** Shape the public site receives from `/landing/published/{slug}`. */
+export interface PublishedLanding {
+  slug: string;
+  version: number;
+  publishedAt: string;
+  seo: LandingPage["seo"];
+  sections: LandingPage["sections"];
+}
+
+export const landingApi = {
+  pages: () => http.get<Paginated<LandingPage>>("/landing/pages"),
+  get: (id: string) => http.get<LandingPage>(`/landing/pages/${id}`),
+  saveDraft: (id: string, payload: Partial<LandingPage>) =>
+    http.patch<LandingPage>(`/landing/pages/${id}`, payload),
+  publish: (id: string) => http.post<LandingPage>(`/landing/pages/${id}`),
+  /** Same endpoint the WeShort site calls when it renders the page. */
+  published: (slug: string) => http.get<PublishedLanding>(`/landing/published/${slug}`),
 };
 
 /* ------------------------------ organisation ---------------------------- */

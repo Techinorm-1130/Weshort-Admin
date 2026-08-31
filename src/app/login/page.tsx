@@ -38,7 +38,7 @@ export default function LoginPage() {
     const res = await login.run();
     if (res) {
       toast.success(`Welcome back, ${res.user.name}`);
-      router.push("/dashboard");
+      router.push("/users");
     }
   };
 

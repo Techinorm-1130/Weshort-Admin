@@ -90,7 +90,7 @@ export default function Topbar({
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (search.trim()) router.push(`/medias?search=${encodeURIComponent(search.trim())}`);
+              if (search.trim()) router.push(`/users?search=${encodeURIComponent(search.trim())}`);
             }}
             className="relative min-w-0 flex-1"
           >
@@ -98,7 +98,7 @@ export default function Topbar({
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search the catalogue"
+              placeholder="Search users"
               className="h-10 w-full rounded-full bg-surface-2 pl-11 pr-4 text-sm text-ink placeholder:text-muted outline-none transition focus:bg-surface-3"
             />
           </form>
@@ -106,7 +106,7 @@ export default function Topbar({
           {/* encoding quota chip — the reference keeps a live status inside the bar */}
           {org ? (
             <Link
-              href="/encodings"
+              href="/organisation/billing"
               className="hidden h-10 shrink-0 items-center gap-2.5 rounded-full bg-surface-2 pl-3 pr-4 transition hover:bg-surface-3 xl:flex"
             >
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand/15 text-brand">
@@ -122,11 +122,11 @@ export default function Topbar({
           <RoundButton icon="bell" label="Notifications" dot onClick={() => toast.info("No new notification")} />
           <RoundButton
             icon="gauge"
-            label="Encodings"
-            href="/encodings"
+            label="Encoding plan"
+            href="/organisation/billing"
             badge={running.length || undefined}
           />
-          <RoundButton icon="arrow-left" label="Projects" href="/projects" tone="ink" />
+          <RoundButton icon="upload" label="Upload content" href="/content/upload" tone="ink" />
         </div>
 
         {/* account, outside the bar like the reference avatar */}

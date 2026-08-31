@@ -46,7 +46,7 @@ export default function AuthShell({
       <div className="mx-auto grid w-full max-w-6xl items-center gap-10 lg:grid-cols-2 lg:gap-16">
         {/* ------------------------------ brand side ------------------------- */}
         <section className="hidden lg:block">
-          <Link href="/dashboard" className="inline-flex">
+          <Link href="/users" className="inline-flex">
             <Logo height={30} />
           </Link>
 

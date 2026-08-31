@@ -38,7 +38,7 @@ export default function Sidebar({
       >
         {/* brand */}
         <div className={`flex h-[92px] shrink-0 items-center justify-between px-6 ${collapsed ? "lg:justify-center lg:px-0" : ""}`}>
-          <Link href="/dashboard" className="flex items-center">
+          <Link href="/users" className="flex items-center">
             <Logo height={22} wordmark={!collapsed} showCms={false} />
           </Link>
           <button

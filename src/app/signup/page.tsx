@@ -56,7 +56,7 @@ export default function SignupPage() {
     const res = await register.run();
     if (res) {
       toast.success(`Account created for ${res.user.name}`);
-      router.push("/dashboard");
+      router.push("/users");
     }
   };
 

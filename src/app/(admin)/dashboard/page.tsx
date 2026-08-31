@@ -27,9 +27,9 @@ const STAT_ICONS: Record<DashboardStat["icon"], IconName> = {
 
 /** Where the ↗ on each stat card goes. */
 const STAT_LINKS: Record<string, string> = {
-  activeUsers: "/projects",
-  registeredUsers: "/projects",
-  contents: "/medias",
+  activeUsers: "/users",
+  registeredUsers: "/users",
+  contents: "/content/upload",
   bandwidth: "/organisation/billing",
 };
 
@@ -86,11 +86,11 @@ export default function DashboardPage() {
           <Chip active icon="chart">
             Overview
           </Chip>
-          <Chip icon="film" onClick={() => router.push("/medias")}>
-            Catalogue
+          <Chip icon="users" onClick={() => router.push("/users")}>
+            Audience
           </Chip>
-          <Chip icon="gauge" onClick={() => router.push("/encodings")}>
-            Encoding
+          <Chip icon="upload" onClick={() => router.push("/content/upload")}>
+            Content
           </Chip>
         </div>
       </div>
@@ -100,7 +100,7 @@ export default function DashboardPage() {
         {loading || !data
           ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[360px] rounded-[28px]" />)
           : data.stats.map((stat, i) => {
-              const href = STAT_LINKS[stat.key] ?? "/medias";
+              const href = STAT_LINKS[stat.key] ?? "/users";
               const filled = i === 0;
               const accent = filled ? "#0c0c0e" : stat.color;
               const trend = stat.series.map((point) => point.value);
@@ -256,7 +256,7 @@ export default function DashboardPage() {
               subtitle="minutes consumed"
             />
           }
-          actions={<OpenAction onClick={() => router.push("/encodings")} />}
+          actions={<OpenAction onClick={() => router.push("/organisation/billing")} />}
         >
           <CardHeading
             tile={<IconTile icon="gauge" color="#2f6bff" />}
@@ -316,12 +316,12 @@ export default function DashboardPage() {
                       <span className="h-2.5 w-2.5 rounded-full bg-brand" />
                     </span>
                   }
-                  onClick={() => router.push("/encodings")}
+                  onClick={() => router.push("/organisation/billing")}
                 >
                   Plan active
                 </SelectPill>
                 <RoundAction icon="billing" label="Billing" onClick={() => router.push("/organisation/billing")} />
-                <RoundAction icon="bolt" label="Encodings" solid onClick={() => router.push("/encodings")} />
+                <RoundAction icon="bolt" label="Plan" solid onClick={() => router.push("/organisation/billing")} />
               </CardFooter>
             </>
           )}
@@ -339,7 +339,7 @@ export default function DashboardPage() {
               subtitle="contents by category"
             />
           }
-          actions={<OpenAction onClick={() => router.push("/medias")} />}
+          actions={<OpenAction onClick={() => router.push("/content/upload")} />}
         >
           <CardHeading tile={<IconTile icon="film" color="#2f6bff" />} title="Catalogue breakdown" />
 
@@ -376,11 +376,11 @@ export default function DashboardPage() {
                       <span className="h-2.5 w-2.5 rounded-full bg-accent" />
                     </span>
                   }
-                  onClick={() => router.push("/medias")}
+                  onClick={() => router.push("/content/upload")}
                 >
                   Catalogue live
                 </SelectPill>
-                <RoundAction icon="plus" label="New media" solid onClick={() => router.push("/medias")} />
+                <RoundAction icon="plus" label="Upload content" solid onClick={() => router.push("/content/upload")} />
               </CardFooter>
             </>
           )}
@@ -398,7 +398,7 @@ export default function DashboardPage() {
           actions={
             <>
               <RoundAction icon="bolt" label="Refresh" size="sm" onClick={refresh} />
-              <OpenAction onClick={() => router.push("/encodings")} />
+              <OpenAction onClick={() => router.push("/users")} />
             </>
           }
         >

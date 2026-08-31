@@ -8,7 +8,9 @@
 
 import type {
   ActivityEvent,
+  ContentItem,
   Contribution,
+  LandingPage,
   Dashboard,
   EncodingJob,
   EncodingProfile,
@@ -20,6 +22,8 @@ import type {
   Person,
   Project,
   Taxonomies,
+  Viewer,
+  ViewerStats,
 } from "@/types";
 import {
   activityEvents,
@@ -37,6 +41,7 @@ import {
   statSeries,
   taxonomies,
 } from "./seed";
+import { buildContents, buildLandingPage, buildViewers } from "./seed-ott";
 
 type Row = { id: string };
 
@@ -45,6 +50,9 @@ const fields = (row: Row) => row as unknown as Record<string, unknown>;
 
 interface Store {
   medias: Media[];
+  viewers: Viewer[];
+  contents: ContentItem[];
+  landing: LandingPage[];
   projects: Project[];
   fastChannels: FastChannel[];
   contributions: Contribution[];
@@ -62,6 +70,9 @@ function createStore(): Store {
   const medias = buildMedias();
   return {
     medias,
+    viewers: buildViewers(),
+    contents: buildContents(),
+    landing: [buildLandingPage()],
     projects: [...projects],
     fastChannels: [...fastChannels],
     contributions: [...contributions],
@@ -76,7 +87,25 @@ function createStore(): Store {
 }
 
 const globalRef = globalThis as unknown as { __weshortStore?: Store };
-const db: Store = globalRef.__weshortStore ?? (globalRef.__weshortStore = createStore());
+
+/**
+ * Reuses the store across hot reloads so edits made in a session survive, while
+ * back-filling any collection added since that store was created.
+ */
+function ensureStore(): Store {
+  const existing = globalRef.__weshortStore;
+  if (!existing) return (globalRef.__weshortStore = createStore());
+
+  const fresh = createStore();
+  for (const key of Object.keys(fresh) as (keyof Store)[]) {
+    if (existing[key] === undefined) {
+      (existing as unknown as Record<string, unknown>)[key] = fresh[key];
+    }
+  }
+  return existing;
+}
+
+const db: Store = ensureStore();
 
 /* ------------------------------- helpers ------------------------------- */
 
@@ -123,6 +152,26 @@ function paginate<T extends Row>(rows: T[], params: URLSearchParams): Paginated<
     items = items.filter((r) => {
       const f = fields(r);
       return f.kind === type || f.sourceType === type || f.role === type || f.state === type;
+    });
+  }
+
+  const plan = params.get("plan");
+  if (plan && plan !== "all") items = items.filter((r) => fields(r).plan === plan);
+
+  const country = params.get("country");
+  if (country && country !== "all") items = items.filter((r) => fields(r).country === country);
+
+  // Date window, applied to whichever timestamp the row carries.
+  const from = params.get("from");
+  const to = params.get("to");
+  if (from || to) {
+    items = items.filter((r) => {
+      const f = fields(r);
+      const stamp = String(f.joinedAt ?? f.createdAt ?? f.updatedAt ?? "");
+      if (!stamp) return true;
+      if (from && stamp < from) return false;
+      if (to && stamp > `${to}T23:59:59.999Z`) return false;
+      return true;
     });
   }
 
@@ -244,6 +293,39 @@ function blankUser(): OrgUser {
   return {
     id: makeId("usr"), name: "New user", email: "", role: "viewer", status: "offline",
     lastLogin: "", avatarColor: "#2f80ed",
+  };
+}
+
+function blankContent(type: ContentItem["type"]): ContentItem {
+  return {
+    id: makeId("cnt"),
+    type,
+    title: "",
+    shortDescription: "",
+    description: "",
+    poster: null,
+    thumbnail: null,
+    banner: null,
+    releaseDate: "",
+    durationSec: 0,
+    language: "",
+    genres: [],
+    category: "",
+    country: "",
+    ageRating: "",
+    video: null,
+    trailer: null,
+    audioLanguages: [],
+    subtitles: [],
+    access: "premium",
+    status: "draft",
+    publishAt: "",
+    expiryAt: "",
+    featured: false,
+    allowDownload: false,
+    seasons: [],
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
   };
 }
 
@@ -449,6 +531,99 @@ export function handleMock<T>(method: string, rawPath: string, body?: unknown): 
       if (method === "DELETE") {
         db.encodingProfiles = db.encodingProfiles.filter((p) => p.id !== id);
         return as(undefined);
+      }
+      break;
+    }
+
+    /* ------------------------------ viewers ----------------------------- */
+    case "viewers": {
+      if (method === "GET" && id === "stats") {
+        const stats: ViewerStats = {
+          total: db.viewers.length,
+          active: db.viewers.filter((v) => v.status === "active").length,
+          premium: db.viewers.filter((v) => v.plan === "premium").length,
+          newThisMonth: db.viewers.filter((v) => v.joinedAt >= "2026-08-01").length,
+        };
+        return as(stats);
+      }
+      if (method === "GET" && !id) return as(paginate(db.viewers, params));
+      if (method === "GET" && id) return as(findOr404(db.viewers, id));
+      if (method === "PATCH" || method === "PUT") {
+        const row = findOr404(db.viewers, id);
+        Object.assign(row, body as object);
+        return as(row);
+      }
+      if (method === "DELETE") {
+        db.viewers = db.viewers.filter((v) => v.id !== id);
+        return as(undefined);
+      }
+      break;
+    }
+
+    /* ------------------------------ contents ---------------------------- */
+    case "contents": {
+      if (method === "GET" && !id) return as(paginate(db.contents, params));
+      if (method === "GET" && id) return as(findOr404(db.contents, id));
+      if (method === "POST" && !id) {
+        const payload = body as Partial<ContentItem>;
+        const created: ContentItem = {
+          ...blankContent((payload?.type ?? "movie") as ContentItem["type"]),
+          ...(payload as object),
+        };
+        db.contents.unshift(created);
+        return as(created);
+      }
+      if (method === "POST" && sub === "publish") {
+        const row = findOr404(db.contents, id);
+        row.status = row.publishAt && row.publishAt > nowIso().slice(0, 10) ? "scheduled" : "published";
+        row.updatedAt = nowIso();
+        return as(row);
+      }
+      if (method === "PATCH" || method === "PUT") return as(patch(db.contents, id, body));
+      if (method === "DELETE") {
+        db.contents = db.contents.filter((c) => c.id !== id);
+        return as(undefined);
+      }
+      break;
+    }
+
+    /* ------------------------------ landing ----------------------------- */
+    case "landing": {
+      // What the public site reads: the published snapshot only.
+      if (method === "GET" && id === "published") {
+        const page = db.landing.find((p) => p.slug === sub);
+        if (!page?.published) throw new Error(`Not published: ${sub}`);
+        return as({
+          slug: page.slug,
+          version: page.published.version,
+          publishedAt: page.publishedAt,
+          seo: page.published.seo,
+          sections: page.published.sections.filter((section) => section.visible),
+        });
+      }
+
+      if (method === "GET" && id === "pages" && !sub) return as(paginate(db.landing, params));
+      if (method === "GET" && id === "pages" && sub) return as(findOr404(db.landing, sub));
+
+      if ((method === "PATCH" || method === "PUT") && id === "pages") {
+        const page = findOr404(db.landing, sub);
+        Object.assign(page, body as object, { updatedAt: nowIso(), status: "draft" });
+        return as(page);
+      }
+
+      if (method === "POST" && id === "pages") {
+        const page = findOr404(db.landing, sub);
+        // publish promotes the working draft into the snapshot the site serves
+        page.published = {
+          sections: structuredClone(page.sections),
+          seo: structuredClone(page.seo),
+          version: page.version + 1,
+        };
+        page.version += 1;
+        page.status = "published";
+        page.publishedAt = nowIso();
+        page.updatedAt = nowIso();
+        return as(page);
       }
       break;
     }
