@@ -3,9 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { encodingApi, orgApi } from "@/lib/api/resources";
-import { useQuery } from "@/lib/hooks";
-import { formatMinutes, percent, timeAgo } from "@/lib/format";
+import { timeAgo } from "@/lib/format";
 import Icon, { type IconName } from "@/components/ui/Icon";
 import { Dropdown } from "@/components/ui/Overlays";
 import { useToast } from "@/components/ui/Toast";
@@ -65,11 +63,6 @@ export default function Topbar({
   const router = useRouter();
   const toast = useToast();
   const [search, setSearch] = useState("");
-  const { data: jobs } = useQuery(() => encodingApi.jobs({ perPage: 5 }), []);
-  const { data: org } = useQuery(() => orgApi.get(), []);
-
-  const running = jobs?.items.filter((j) => j.state === "running" || j.state === "queued") ?? [];
-  const quotaPct = org ? percent(org.encodingUsedMin, org.encodingQuotaMin) : 0;
 
   return (
     <div className="sticky top-0 z-30 bg-background/90 px-4 py-4 backdrop-blur lg:px-6">
@@ -103,29 +96,7 @@ export default function Topbar({
             />
           </form>
 
-          {/* encoding quota chip — the reference keeps a live status inside the bar */}
-          {org ? (
-            <Link
-              href="/organisation/billing"
-              className="hidden h-10 shrink-0 items-center gap-2.5 rounded-full bg-surface-2 pl-3 pr-4 transition hover:bg-surface-3 xl:flex"
-            >
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand/15 text-brand">
-                <Icon name="gauge" size={14} />
-              </span>
-              <span className="text-[13px] leading-none">
-                <span className="block font-semibold text-ink">{formatMinutes(org.encodingUsedMin)}</span>
-                <span className="mt-0.5 block text-[11px] text-muted">{quotaPct}% of encoding plan</span>
-              </span>
-            </Link>
-          ) : null}
-
           <RoundButton icon="bell" label="Notifications" dot onClick={() => toast.info("No new notification")} />
-          <RoundButton
-            icon="gauge"
-            label="Encoding plan"
-            href="/organisation/billing"
-            badge={running.length || undefined}
-          />
           <RoundButton icon="upload" label="Upload content" href="/content/upload" tone="ink" />
         </div>
 
