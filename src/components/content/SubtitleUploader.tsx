@@ -70,7 +70,7 @@ export default function SubtitleUploader({
       {value.length ? (
         <ul className="mt-4 space-y-2.5">
           {value.map((track) => (
-            <li key={track.id} className="flex items-center gap-3 rounded-[20px] bg-surface-2 px-4 py-3">
+            <li key={track.id} className="flex items-center gap-3 rounded-lg bg-surface-2 px-4 py-3">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-3 text-ink">
                 <Icon name="file" size={15} />
               </span>
@@ -92,7 +92,7 @@ export default function SubtitleUploader({
           ))}
         </ul>
       ) : (
-        <p className="mt-4 rounded-[20px] bg-surface-2 px-4 py-3 text-[13px] text-muted">
+        <p className="mt-4 rounded-lg bg-surface-2 px-4 py-3 text-[13px] text-muted">
           No subtitle track yet. Viewers will only see the audio languages you selected.
         </p>
       )}

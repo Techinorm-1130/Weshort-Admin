@@ -46,7 +46,7 @@ export default function FieldEditor({
 
     case "toggle":
       return (
-        <div className="rounded-[20px] bg-surface-2 px-4 py-3.5">
+        <div className="rounded-lg border border-border px-3 py-2.5">
           <Toggle checked={Boolean(value)} onChange={onChange} label={field.label} description={field.hint} />
         </div>
       );
@@ -77,13 +77,16 @@ export default function FieldEditor({
     case "color":
       return (
         <label className="block">
-          <span className="mb-2 block text-[13px] font-semibold text-muted-strong">{field.label}</span>
-          <input
-            type="color"
-            value={String(value ?? "#e50914")}
-            onChange={(e) => onChange(e.target.value)}
-            className="h-11 w-20 cursor-pointer rounded-xl bg-surface-2"
-          />
+          <span className="mb-1.5 block text-[12px] font-semibold text-muted-strong">{field.label}</span>
+          <span className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-input-bg pl-1.5 pr-3 transition hover:border-border-strong">
+            <input
+              type="color"
+              value={String(value ?? "#e50914")}
+              onChange={(e) => onChange(e.target.value)}
+              className="h-6 w-8 cursor-pointer rounded border-0 bg-transparent p-0"
+            />
+            <span className="font-mono text-[12px] text-muted">{String(value ?? "#e50914")}</span>
+          </span>
         </label>
       );
 
@@ -105,15 +108,15 @@ export default function FieldEditor({
       return (
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-muted-strong">{field.label}</span>
+            <span className="text-[12px] font-semibold text-muted-strong">{field.label}</span>
             <span className="text-xs text-muted">{rows.length} item(s)</span>
           </div>
 
           <div className="space-y-3">
             {rows.map((row, index) => (
-              <div key={index} className="rounded-[20px] bg-surface-2 p-4">
+              <div key={index} className="rounded-lg border border-border bg-surface-2 p-3">
                 <div className="mb-3 flex items-center justify-between gap-2">
-                  <span className="text-[12px] font-bold uppercase tracking-wider text-muted">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">
                     {field.itemLabel ?? "item"} {index + 1}
                   </span>
                   <div className="flex items-center gap-1.5">
@@ -122,7 +125,7 @@ export default function FieldEditor({
                       aria-label="Move up"
                       onClick={() => move(index, -1)}
                       disabled={index === 0}
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-3 text-muted transition hover:text-ink disabled:opacity-30"
+                      className="flex h-7 w-7 items-center justify-center rounded-md text-muted transition hover:bg-surface-3 hover:text-ink disabled:opacity-30"
                     >
                       <Icon name="chevron-down" size={13} className="rotate-180" />
                     </button>
@@ -131,7 +134,7 @@ export default function FieldEditor({
                       aria-label="Move down"
                       onClick={() => move(index, 1)}
                       disabled={index === rows.length - 1}
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-3 text-muted transition hover:text-ink disabled:opacity-30"
+                      className="flex h-7 w-7 items-center justify-center rounded-md text-muted transition hover:bg-surface-3 hover:text-ink disabled:opacity-30"
                     >
                       <Icon name="chevron-down" size={13} />
                     </button>
@@ -139,7 +142,7 @@ export default function FieldEditor({
                       type="button"
                       aria-label="Remove item"
                       onClick={() => onChange(rows.filter((_, i) => i !== index))}
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-3 text-muted transition hover:bg-danger/15 hover:text-danger"
+                      className="flex h-7 w-7 items-center justify-center rounded-md text-muted transition hover:bg-danger/12 hover:text-danger"
                     >
                       <Icon name="trash" size={13} />
                     </button>

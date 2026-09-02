@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Icon from "./Icon";
 import { useDebounced } from "@/lib/hooks";
+import { Select } from "./Fields";
 
 /* ------------------------------ search input ---------------------------- */
 
@@ -24,12 +25,12 @@ export function SearchInput({
 
   return (
     <div className={`relative ${className}`}>
-      <Icon name="search" size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
+      <Icon name="search" size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
       <input
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder={placeholder}
-        className="h-11 w-full rounded-full bg-surface pl-11 pr-9 text-sm text-ink placeholder:text-muted outline-none ring-1 ring-border transition hover:ring-border-strong focus:ring-2 focus:ring-ink/70"
+        className="h-9 w-full rounded-lg border border-border bg-input-bg pl-8 pr-8 text-[13px] text-ink placeholder:text-muted/70 outline-none transition-[border-color,box-shadow] duration-150 hover:border-border-strong focus:border-accent focus:ring-[3px] focus:ring-accent/15"
       />
       {text ? (
         <button
@@ -69,7 +70,7 @@ export function Pagination({
 }) {
   const pages = pageWindow(page, pageCount);
   return (
-    <div className="mt-4 flex flex-col items-center justify-between gap-3 text-sm text-muted sm:flex-row">
+    <div className="mt-3 flex flex-col items-center justify-between gap-3 text-[12px] text-muted sm:flex-row">
       <span>Number of items: {total}</span>
 
       <div className="flex items-center gap-4">
@@ -78,7 +79,7 @@ export function Pagination({
             <button
               onClick={() => onPage(Math.max(1, page - 1))}
               disabled={page === 1}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-surface text-muted ring-1 ring-border transition hover:text-ink disabled:opacity-30"
+              className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-surface text-muted transition hover:text-ink disabled:opacity-30"
               aria-label="Previous page"
             >
               <Icon name="chevron-left" size={16} />
@@ -92,8 +93,8 @@ export function Pagination({
                 <button
                   key={p}
                   onClick={() => onPage(p)}
-                  className={`h-9 min-w-9 rounded-full px-3 text-[13px] font-semibold transition ${
-                    p === page ? "bg-ink text-on-ink" : "text-muted hover:bg-surface-2 hover:text-ink"
+                  className={`h-7 min-w-7 rounded-md px-2 text-[12px] font-semibold transition ${
+                    p === page ? "bg-accent-soft text-accent" : "text-muted hover:bg-surface-2 hover:text-ink"
                   }`}
                 >
                   {p}
@@ -103,7 +104,7 @@ export function Pagination({
             <button
               onClick={() => onPage(Math.min(pageCount, page + 1))}
               disabled={page === pageCount}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-surface text-muted ring-1 ring-border transition hover:text-ink disabled:opacity-30"
+              className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-surface text-muted transition hover:text-ink disabled:opacity-30"
               aria-label="Next page"
             >
               <Icon name="chevron-right" size={16} />
@@ -111,20 +112,17 @@ export function Pagination({
           </div>
         ) : null}
 
-        <label className="flex items-center gap-2">
-          Per page
-          <select
-            value={perPage}
-            onChange={(e) => onPerPage(Number(e.target.value))}
-            className="h-9 rounded-full bg-surface px-3 text-[13px] text-ink outline-none ring-1 ring-border"
-          >
-            {[10, 25, 50, 100].map((n) => (
-              <option key={n} value={n} className="bg-surface">
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="flex items-center gap-2">
+          <span>Per page</span>
+          <div className="w-20">
+            <Select
+              value={String(perPage)}
+              placeholder=""
+              options={[10, 25, 50, 100].map((n) => ({ value: String(n), label: String(n) }))}
+              onChange={(e) => onPerPage(Number(e.target.value))}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

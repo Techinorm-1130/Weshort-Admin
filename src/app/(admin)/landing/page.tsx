@@ -39,9 +39,9 @@ export default function LandingBuilderPage() {
     return (
       <>
         <PageHeader title="Landing page" crumbs={[{ label: "Site", icon: "globe" }]} />
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
-          <Skeleton className="h-96 rounded-[28px] xl:col-span-4" />
-          <Skeleton className="h-96 rounded-[28px] xl:col-span-8" />
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+          <Skeleton className="h-96 rounded-lg xl:col-span-4" />
+          <Skeleton className="h-96 rounded-lg xl:col-span-8" />
         </div>
       </>
     );
@@ -119,7 +119,15 @@ export default function LandingBuilderPage() {
     <>
       <PageHeader
         title="Landing page"
-        crumbs={[{ label: "Site", icon: "globe" }, { label: "Builder" }]}
+        icon="globe"
+        iconColor="#7c3aed"
+        crumbs={[{ label: "Site" }, { label: "Landing page" }]}
+        activeTab="builder"
+        tabs={[
+          { id: "builder", label: "Builder", icon: "layers", color: "#7c3aed", onSelect: () => undefined },
+          { id: "seo", label: "SEO", icon: "search", color: "#0d9488", onSelect: () => setShowSeo(true) },
+          { id: "payload", label: "API payload", icon: "file", color: "#0369a1", onSelect: () => setPayloadOpen(true) },
+        ]}
         subtitle={
           <span className="flex flex-wrap items-center gap-2">
             <Badge tone={dirty ? "warn" : draft.status === "published" ? "ok" : "neutral"}>
@@ -150,10 +158,10 @@ export default function LandingBuilderPage() {
 
       {error ? <ErrorBox message={error} onRetry={refresh} /> : null}
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
         {/* ---------------------------- section list ---------------------------- */}
         <Card className="xl:col-span-4" padded={false}>
-          <div className="px-5 pt-5">
+          <div className="px-4 pt-4">
             <CardTitle
               title="Sections"
               subtitle={`${draft.sections.filter((s) => s.visible).length} of ${draft.sections.length} visible`}
@@ -165,33 +173,35 @@ export default function LandingBuilderPage() {
             />
           </div>
 
-          <ul className="space-y-2 px-5 pb-5">
+          <ul className="space-y-1 px-4 pb-4">
             {draft.sections.map((item, index) => {
               const active = item.id === activeId;
               const meta = SECTION_MAP[item.type];
               return (
                 <li key={item.id}>
                   <div
-                    className={`rounded-[20px] transition ${
-                      active ? "bg-ink text-on-ink" : "bg-surface-2 hover:bg-surface-3"
+                    className={`rounded-lg border transition ${
+                      active
+                        ? "border-accent/40 bg-accent-soft"
+                        : "border-transparent hover:border-border hover:bg-surface-2"
                     }`}
                   >
-                    <div className="flex items-center gap-3 p-3">
+                    <div className="flex items-center gap-2.5 p-2">
                       <button
                         type="button"
                         onClick={() => setSelected(item.id)}
                         className="flex min-w-0 flex-1 items-center gap-3 text-left"
                       >
                         <span
-                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] ${
-                            active ? "bg-on-ink/15" : "bg-surface-3 text-ink"
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
+                            active ? "bg-accent text-white" : "bg-surface-2 text-muted"
                           }`}
                         >
-                          <Icon name={meta.icon} size={17} />
+                          <Icon name={meta.icon} size={15} />
                         </span>
                         <span className="min-w-0">
-                          <span className="block truncate text-sm font-bold">{item.name}</span>
-                          <span className={`block truncate text-xs ${active ? "opacity-70" : "text-muted"}`}>
+                          <span className="block truncate text-[13px] font-semibold text-ink">{item.name}</span>
+                          <span className="block truncate text-[11px] text-muted">
                             {meta.label}
                             {item.visible ? "" : " · hidden"}
                           </span>
@@ -204,9 +214,7 @@ export default function LandingBuilderPage() {
                           aria-label="Move up"
                           onClick={() => move(index, -1)}
                           disabled={index === 0}
-                          className={`flex h-8 w-8 items-center justify-center rounded-full transition disabled:opacity-25 ${
-                            active ? "bg-on-ink/15" : "bg-surface-3 text-muted hover:text-ink"
-                          }`}
+                          className="flex h-7 w-7 items-center justify-center rounded-md text-muted transition hover:bg-surface-2 hover:text-ink disabled:opacity-25"
                         >
                           <Icon name="chevron-down" size={13} className="rotate-180" />
                         </button>
@@ -215,9 +223,7 @@ export default function LandingBuilderPage() {
                           aria-label="Move down"
                           onClick={() => move(index, 1)}
                           disabled={index === draft.sections.length - 1}
-                          className={`flex h-8 w-8 items-center justify-center rounded-full transition disabled:opacity-25 ${
-                            active ? "bg-on-ink/15" : "bg-surface-3 text-muted hover:text-ink"
-                          }`}
+                          className="flex h-7 w-7 items-center justify-center rounded-md text-muted transition hover:bg-surface-2 hover:text-ink disabled:opacity-25"
                         >
                           <Icon name="chevron-down" size={13} />
                         </button>
@@ -225,9 +231,9 @@ export default function LandingBuilderPage() {
                           type="button"
                           aria-label={item.visible ? "Hide section" : "Show section"}
                           onClick={() => patchSection(item.id, { visible: !item.visible })}
-                          className={`flex h-8 w-8 items-center justify-center rounded-full transition ${
-                            active ? "bg-on-ink/15" : "bg-surface-3 text-muted hover:text-ink"
-                          } ${item.visible ? "" : "opacity-50"}`}
+                          className={`flex h-7 w-7 items-center justify-center rounded-md text-muted transition hover:bg-surface-2 hover:text-ink ${
+                            item.visible ? "" : "opacity-40"
+                          }`}
                         >
                           <Icon name="eye" size={13} />
                         </button>
@@ -302,14 +308,14 @@ export default function LandingBuilderPage() {
               key={item.type}
               type="button"
               onClick={() => addSection(item.type)}
-              className="flex items-start gap-3 rounded-[20px] bg-surface-2 p-4 text-left transition hover:bg-surface-3"
+              className="flex items-start gap-3 rounded-lg border border-border p-3 text-left transition hover:border-brand/40 hover:bg-surface-2"
             >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-surface-3 text-ink">
-                <Icon name={item.icon} size={18} />
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-surface-2 text-muted">
+                <Icon name={item.icon} size={15} />
               </span>
               <span className="min-w-0">
-                <span className="block text-sm font-bold text-ink">{item.label}</span>
-                <span className="mt-0.5 block text-xs text-muted">{item.description}</span>
+                <span className="block text-[13px] font-semibold text-ink">{item.label}</span>
+                <span className="mt-0.5 block text-[11px] text-muted">{item.description}</span>
               </span>
             </button>
           ))}
@@ -355,7 +361,7 @@ export default function LandingBuilderPage() {
         width="max-w-3xl"
         footer={<Button onClick={() => setPayloadOpen(false)}>Close</Button>}
       >
-        <pre className="max-h-[50vh] overflow-auto rounded-[20px] bg-surface-2 p-4 text-[12px] leading-relaxed text-muted-strong">
+        <pre className="max-h-[50vh] overflow-auto rounded-lg border border-border bg-surface-2 p-3 text-[12px] leading-relaxed text-muted-strong">
           {JSON.stringify(
             {
               slug: draft.slug,

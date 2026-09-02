@@ -7,18 +7,18 @@ type Size = "sm" | "md" | "lg";
 
 /* Black pills carry the primary actions, exactly like the reference. */
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-ink text-on-ink shadow-[0_10px_24px_-12px_rgba(12,12,14,0.8)] hover:bg-ink-soft",
-  accent: "grad-accent text-white shadow-[0_10px_24px_-12px_rgba(37,99,255,0.9)] hover:brightness-110",
-  secondary: "bg-surface text-ink ring-1 ring-border hover:bg-surface-2",
+  primary: "bg-accent text-white hover:bg-accent-hover",
+  accent: "bg-ink text-on-ink hover:bg-ink-soft",
+  secondary: "bg-surface text-ink border border-border hover:bg-surface-2",
   subtle: "bg-surface-2 text-muted-strong hover:bg-surface-3 hover:text-ink",
   ghost: "text-muted hover:bg-surface-2 hover:text-ink",
-  danger: "bg-brand text-white hover:bg-brand-hover",
+  danger: "bg-danger text-white hover:brightness-110",
 };
 
 const SIZES: Record<Size, string> = {
-  sm: "h-9 gap-1.5 px-3.5 text-[13px]",
-  md: "h-11 gap-2 px-5 text-sm",
-  lg: "h-13 gap-2.5 px-6 text-base",
+  sm: "h-7 gap-1.5 px-2.5 text-[12px]",
+  md: "h-8 gap-1.5 px-3 text-[13px]",
+  lg: "h-10 gap-2 px-4 text-sm",
 };
 
 type CommonProps = {
@@ -32,17 +32,12 @@ type CommonProps = {
 };
 
 function classes({ variant = "primary", size = "md", className = "" }: CommonProps) {
-  return `inline-flex items-center justify-center rounded-full font-semibold whitespace-nowrap transition
+  return `inline-flex items-center justify-center rounded-lg font-semibold whitespace-nowrap transition
     active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45 ${VARIANTS[variant]} ${SIZES[size]} ${className}`;
 }
 
-function Inner({ icon, iconRight, loading, children, size = "md", variant = "primary" }: CommonProps) {
-  const s = size === "sm" ? 15 : 17;
-  /* Leading icons sit in a contrasting round chip on the solid pills. */
-  const chip =
-    variant === "primary" || variant === "accent" || variant === "danger"
-      ? "bg-white/15 text-current"
-      : "bg-surface-2 text-ink";
+function Inner({ icon, iconRight, loading, children, size = "md" }: CommonProps) {
+  const s = size === "sm" ? 13 : 15;
 
   return (
     <>
@@ -52,13 +47,7 @@ function Inner({ icon, iconRight, loading, children, size = "md", variant = "pri
           <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
         </svg>
       ) : icon ? (
-        children ? (
-          <span className={`-ml-1.5 flex h-6 w-6 items-center justify-center rounded-full ${chip}`}>
-            <Icon name={icon} size={14} />
-          </span>
-        ) : (
-          <Icon name={icon} size={s} />
-        )
+        <Icon name={icon} size={s} className="-ml-0.5" />
       ) : null}
       {children}
       {iconRight && !loading ? <Icon name={iconRight} size={s} className="-mr-1 opacity-70" /> : null}
@@ -73,7 +62,7 @@ export default function Button({
 }: ButtonProps) {
   return (
     <button className={classes({ variant, size, className })} disabled={disabled || loading} {...rest}>
-      <Inner icon={icon} iconRight={iconRight} loading={loading} size={size} variant={variant}>
+      <Inner icon={icon} iconRight={iconRight} loading={loading} size={size}>
         {children}
       </Inner>
     </button>
@@ -85,7 +74,7 @@ type LinkButtonProps = CommonProps & { href: string };
 export function LinkButton({ href, variant, size, icon, iconRight, className, children }: LinkButtonProps) {
   return (
     <Link href={href} className={classes({ variant, size, className })}>
-      <Inner icon={icon} iconRight={iconRight} size={size} variant={variant}>
+      <Inner icon={icon} iconRight={iconRight} size={size}>
         {children}
       </Inner>
     </Link>
@@ -101,10 +90,10 @@ export function IconButton({
     <button
       aria-label={label}
       title={label}
-      className={`inline-flex ${box} items-center justify-center rounded-full transition ${VARIANTS[variant]} ${className}`}
+      className={`inline-flex ${box} items-center justify-center rounded-lg transition ${VARIANTS[variant]} ${className}`}
       {...rest}
     >
-      <Icon name={icon} size={size === "sm" ? 15 : 17} />
+      <Icon name={icon} size={size === "sm" ? 14 : 15} />
     </button>
   );
 }
@@ -121,8 +110,10 @@ export function Chip({
   return (
     <button
       onClick={onClick}
-      className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-4 text-[13px] font-semibold transition ${
-        active ? "bg-ink text-on-ink" : "bg-surface text-muted-strong ring-1 ring-border hover:bg-surface-2"
+      className={`inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-medium transition ${
+        active
+          ? "bg-accent-soft text-accent"
+          : "text-muted hover:bg-surface-2 hover:text-ink"
       }`}
     >
       {icon ? <Icon name={icon} size={14} /> : null}

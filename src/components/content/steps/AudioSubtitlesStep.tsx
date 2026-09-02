@@ -22,7 +22,7 @@ export default function AudioSubtitlesStep({
     });
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <Card>
         <CardTitle
           title="Audio languages"

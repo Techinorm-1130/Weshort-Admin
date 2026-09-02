@@ -1,26 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { currentYear } from "@/lib/format";
+import Rail from "@/components/layout/Rail";
 import Sidebar from "@/components/layout/Sidebar";
 import Topbar from "@/components/layout/Topbar";
 
+/** Three-zone workspace: icon rail, detailed sidebar, content. */
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar open={menuOpen} collapsed={collapsed} onClose={() => setMenuOpen(false)} />
+      <Rail onOpenMenu={() => setSidebarOpen((v) => !v)} />
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className={`transition-[padding] duration-200 ${collapsed ? "lg:pl-[92px]" : "lg:pl-[268px]"}`}>
-        <Topbar onOpenMenu={() => setMenuOpen(true)} onToggleCollapse={() => setCollapsed((v) => !v)} />
-
-        <main className="mx-auto w-full max-w-[1560px] px-4 pb-10 pt-4 lg:px-6">{children}</main>
-
-        <footer className="px-4 pb-8 text-center text-[13px] text-muted lg:px-6">
-          Copyright © {currentYear()} WeShort Srl. All rights reserved.
-        </footer>
+      <div className="lg:pl-[332px]">
+        <Topbar onOpenMenu={() => setSidebarOpen(true)} />
+        <main className="mx-auto w-full max-w-[1440px] px-4 py-5 lg:px-6">{children}</main>
       </div>
     </div>
   );

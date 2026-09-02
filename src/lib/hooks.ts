@@ -172,7 +172,10 @@ export function useClickOutside<T extends HTMLElement>(
   useEffect(() => {
     if (!active) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onOutside();
+      const target = e.target as Node;
+      // panels rendered through a portal live outside `ref`, but still count as inside
+      if ((target as HTMLElement).closest?.("[data-popover]")) return;
+      if (ref.current && !ref.current.contains(target)) onOutside();
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);

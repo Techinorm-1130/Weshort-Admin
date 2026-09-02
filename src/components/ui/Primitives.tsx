@@ -13,8 +13,8 @@ export function Card({
   /** "ink" renders the black panel used for highlight cards. */
   tone?: "light" | "ink";
 }) {
-  const base = tone === "ink" ? "bar-ink rounded-[26px]" : "card-premium";
-  return <section className={`${base} ${padded ? "p-6" : ""} ${className}`}>{children}</section>;
+  const base = tone === "ink" ? "panel bg-surface-2" : "panel";
+  return <section className={`${base} ${padded ? "p-4" : ""} ${className}`}>{children}</section>;
 }
 
 export function CardTitle({
@@ -26,10 +26,10 @@ export function CardTitle({
   className?: string;
 }) {
   return (
-    <header className={`mb-5 flex items-start justify-between gap-4 ${className}`}>
+    <header className={`mb-4 flex items-start justify-between gap-4 ${className}`}>
       <div>
-        <h2 className="font-display text-[17px] font-bold tracking-tight text-ink">{title}</h2>
-        {subtitle ? <p className="mt-1 text-[13px] text-muted">{subtitle}</p> : null}
+          <h2 className="font-display text-[15px] font-bold tracking-tight text-ink">{title}</h2>
+        {subtitle ? <p className="mt-0.5 text-[12px] text-muted">{subtitle}</p> : null}
       </div>
       {action}
     </header>
@@ -86,7 +86,7 @@ export function Badge({
   icon?: IconName;
 }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${TONES[tone]}`}>
+    <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${TONES[tone]}`}>
       {icon ? <Icon name={icon} size={12} /> : null}
       {children}
     </span>
@@ -169,14 +169,14 @@ export function ProgressRow({
 /* ------------------------------- skeletons ------------------------------ */
 
 export function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`skeleton rounded-2xl ${className}`} />;
+  return <div className={`skeleton rounded-lg ${className}`} />;
 }
 
 export function TableSkeleton({ rows = 6, cols = 5 }: { rows?: number; cols?: number }) {
   return (
     <div className="divide-y divide-line">
       {Array.from({ length: rows }).map((_, r) => (
-        <div key={r} className="flex items-center gap-4 px-6 py-4">
+        <div key={r} className="flex items-center gap-4 px-4 py-3">
           {Array.from({ length: cols }).map((_, c) => (
             <Skeleton key={c} className={`h-4 ${c === 1 ? "flex-1" : "w-20"}`} />
           ))}
@@ -197,13 +197,13 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-      <div className="mb-6 flex h-32 w-32 items-center justify-center rounded-full bg-surface-2 text-ink/25">
-        <Icon name={icon} size={40} />
+    <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-surface-2 text-muted">
+        <Icon name={icon} size={24} />
       </div>
-      <h3 className="font-display text-lg font-bold text-ink">{title}</h3>
-      {description ? <p className="mt-2 max-w-md text-sm text-muted">{description}</p> : null}
-      {action ? <div className="mt-6">{action}</div> : null}
+      <h3 className="font-display text-[15px] font-bold text-ink">{title}</h3>
+      {description ? <p className="mt-1.5 max-w-md text-[13px] text-muted">{description}</p> : null}
+      {action ? <div className="mt-5">{action}</div> : null}
     </div>
   );
 }
@@ -230,7 +230,7 @@ export function Delta({ value, className = "" }: { value: number; className?: st
 
 export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div className="mb-4 flex items-center justify-between gap-4 rounded-2xl bg-danger/10 px-5 py-3.5 text-sm text-danger">
+    <div className="mb-4 flex items-center justify-between gap-4 rounded-lg border border-danger/25 bg-danger/8 px-4 py-2.5 text-[13px] text-danger">
       <span className="flex items-center gap-2">
         <Icon name="close" size={16} /> {message}
       </span>

@@ -23,7 +23,7 @@ export default function BasicInfoStep({
   taxonomies: Taxonomies | null;
 }) {
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <Card>
         <CardTitle title="Content type" subtitle="This drives the rest of the form" />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -34,12 +34,12 @@ export default function BasicInfoStep({
                 key={type.value}
                 type="button"
                 onClick={() => patch({ type: type.value })}
-                className={`flex items-center gap-3 rounded-[20px] p-4 text-left transition ${
+                className={`flex items-center gap-3 rounded-lg p-4 text-left transition ${
                   active ? "bg-ink text-on-ink" : "bg-surface-2 text-muted-strong hover:bg-surface-3"
                 }`}
               >
                 <span
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] ${
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md ${
                     active ? "bg-on-ink/15" : "bg-surface-3 text-ink"
                   }`}
                 >

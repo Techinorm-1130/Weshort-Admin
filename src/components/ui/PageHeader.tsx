@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import type { ReactNode } from "react";
 import Icon, { type IconName } from "./Icon";
@@ -8,6 +10,16 @@ export interface Crumb {
   icon?: IconName;
 }
 
+export interface ViewTab {
+  id: string;
+  label: string;
+  icon?: IconName;
+  /** Glyph tint, so a row of views reads at a glance. */
+  color?: string;
+  href?: string;
+  onSelect?: () => void;
+}
+
 export interface HeaderStat {
   label: string;
   value: ReactNode;
@@ -15,11 +27,12 @@ export interface HeaderStat {
 }
 
 /**
- * Oversized uppercase title with a round back button, the page actions inline,
- * and the key figures spelled out beside it — the reference header anatomy.
+ * Workspace page header: breadcrumb, title row with actions, then the row of
+ * views for this page — the strip that keeps a dense tool navigable.
  */
 export default function PageHeader({
-  title, count, subtitle, crumbs, actions, backHref, stats,
+  title, count, subtitle, crumbs, actions, backHref, stats, tabs, activeTab, icon,
+  iconColor = "var(--brand)",
 }: {
   title: ReactNode;
   count?: number;
@@ -28,71 +41,113 @@ export default function PageHeader({
   actions?: ReactNode;
   backHref?: string;
   stats?: HeaderStat[];
+  tabs?: ViewTab[];
+  activeTab?: string;
+  icon?: IconName;
+  /** Tint for the title icon; defaults to the brand red. */
+  iconColor?: string;
 }) {
   return (
-    <header className="mb-7 flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-      <div className="flex min-w-0 items-center gap-5">
+    <header className="mb-5">
+      {crumbs?.length ? (
+        <nav className="mb-2 flex flex-wrap items-center gap-1.5 text-[12px] text-muted">
+          {crumbs.map((crumb, i) => (
+            <span key={crumb.label} className="flex items-center gap-1.5">
+              {crumb.icon ? <Icon name={crumb.icon} size={12} /> : null}
+              {crumb.href ? (
+                <Link href={crumb.href} className="transition hover:text-ink">
+                  {crumb.label}
+                </Link>
+              ) : (
+                <span>{crumb.label}</span>
+              )}
+              {i < crumbs.length - 1 ? <span className="text-muted/60">/</span> : null}
+            </span>
+          ))}
+        </nav>
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-3">
         {backHref ? (
           <Link
             href={backHref}
             aria-label="Back"
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface text-muted ring-1 ring-border transition hover:text-ink"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-ink"
           >
-            <Icon name="arrow-left" size={20} />
+            <Icon name="arrow-left" size={17} />
           </Link>
         ) : null}
 
-        <div className="min-w-0">
-          <h1 className="display-title truncate text-[34px] text-ink sm:text-[42px]">
-            {title}
-            {typeof count === "number" ? (
-              <span className="ml-3 align-middle text-[20px] font-semibold normal-case tracking-normal text-muted">
-                ({count})
-              </span>
-            ) : null}
-          </h1>
+        {icon ? (
+          <span
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+            style={
+              iconColor
+                ? { background: `${iconColor}1f`, color: iconColor }
+                : undefined
+            }
+          >
+            <Icon name={icon} size={17} />
+          </span>
+        ) : null}
 
-          {crumbs?.length || subtitle ? (
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
-              {crumbs?.map((crumb, i) => (
-                <span key={crumb.label} className="flex items-center gap-2">
-                  {crumb.icon ? <Icon name={crumb.icon} size={14} /> : null}
-                  {crumb.href ? (
-                    <Link href={crumb.href} className="transition hover:text-ink">
-                      {crumb.label}
-                    </Link>
-                  ) : (
-                    <span>{crumb.label}</span>
-                  )}
-                  {i < (crumbs.length ?? 0) - 1 ? (
-                    <Icon name="chevron-right" size={12} className="text-muted/60" />
-                  ) : null}
-                </span>
-              ))}
-              {crumbs?.length && subtitle ? <span className="h-3.5 w-px bg-border" /> : null}
-              {subtitle}
-            </div>
+        <h1 className="font-display text-[22px] font-bold leading-tight tracking-tight text-ink">
+          {title}
+          {typeof count === "number" ? (
+            <span className="ml-2 text-[15px] font-semibold text-muted">{count}</span>
           ) : null}
-        </div>
+        </h1>
 
-        {actions ? <div className="hidden shrink-0 items-center gap-2.5 xl:flex">{actions}</div> : null}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-x-9 gap-y-4">
-        {stats?.map((stat) => (
-          <div key={stat.label} className="flex items-start gap-2">
-            <span className="font-display text-[32px] font-bold leading-none tracking-tight text-ink">
-              {stat.value}
-            </span>
-            <span className="flex flex-col gap-1">
-              {stat.delta}
-              <span className="text-[13px] text-muted">{stat.label}</span>
-            </span>
+        {stats?.length ? (
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pl-2">
+            {stats.map((stat) => (
+              <span key={stat.label} className="flex items-baseline gap-1.5">
+                <span className="font-display text-[17px] font-bold tabular-nums text-ink">{stat.value}</span>
+                <span className="text-[12px] text-muted">{stat.label}</span>
+                {stat.delta}
+              </span>
+            ))}
           </div>
-        ))}
+        ) : null}
 
-        {actions ? <div className="flex flex-wrap items-center gap-2.5 xl:hidden">{actions}</div> : null}
+        {actions ? <div className="ml-auto flex flex-wrap items-center gap-2">{actions}</div> : null}
       </div>
+
+      {subtitle ? <div className="mt-1.5 text-[13px] text-muted">{subtitle}</div> : null}
+
+      {tabs?.length ? (
+        <div className="mt-3 flex items-center gap-1 overflow-x-auto border-b border-border">
+          {tabs.map((tab) => {
+            const active = tab.id === activeTab;
+            const content = (
+              <>
+                {tab.icon ? (
+                  <span
+                    className="flex h-[18px] w-[18px] items-center justify-center rounded-[5px]"
+                    style={
+                      tab.color
+                        ? { background: `${tab.color}1f`, color: tab.color }
+                        : undefined
+                    }
+                  >
+                    <Icon name={tab.icon} size={12} />
+                  </span>
+                ) : null}
+                {tab.label}
+              </>
+            );
+            return tab.href ? (
+              <Link key={tab.id} href={tab.href} data-active={active} className="view-tab">
+                {content}
+              </Link>
+            ) : (
+              <button key={tab.id} onClick={tab.onSelect} data-active={active} className="view-tab">
+                {content}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
     </header>
   );
 }

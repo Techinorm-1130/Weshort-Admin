@@ -80,7 +80,7 @@ export default function EpisodesEditor({
   return (
     <div className="space-y-4">
       {seasons.length === 0 ? (
-        <div className="rounded-[22px] bg-surface-2 p-6 text-center">
+        <div className="rounded-lg bg-surface-2 p-6 text-center">
           <p className="text-sm font-semibold text-ink">No season yet</p>
           <p className="mx-auto mt-1.5 max-w-sm text-[13px] text-muted">
             A series needs at least one season with one episode before it can be published.
@@ -151,7 +151,7 @@ export default function EpisodesEditor({
                   {season.episodes.map((episode) => {
                     const open = openEpisode === episode.id;
                     return (
-                      <li key={episode.id} className="rounded-[20px] bg-surface-2">
+                      <li key={episode.id} className="rounded-lg bg-surface-2">
                         <div className="flex flex-wrap items-center gap-3 px-4 py-3">
                           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-3 text-[12px] font-bold text-ink">
                             {episode.episodeNumber}
@@ -249,7 +249,7 @@ export default function EpisodesEditor({
                 </ul>
 
                 {season.episodes.length === 0 ? (
-                  <p className="mt-4 rounded-[20px] bg-surface-2 px-4 py-3 text-[13px] text-muted">
+                  <p className="mt-4 rounded-lg bg-surface-2 px-4 py-3 text-[13px] text-muted">
                     No episode in this season yet.
                   </p>
                 ) : null}

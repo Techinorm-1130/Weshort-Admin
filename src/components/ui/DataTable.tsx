@@ -42,13 +42,13 @@ function HeaderFilter({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`ml-1 rounded p-0.5 transition ${active ? "text-brand" : "text-muted hover:text-ink"}`}
+        className={`ml-1 rounded p-0.5 transition ${active ? "text-accent" : "text-muted hover:text-ink"}`}
         aria-label="Filter"
       >
         <Icon name="chevron-down" size={14} />
       </button>
       {open ? (
-        <div className="absolute left-0 top-full z-30 mt-2 min-w-44 overflow-hidden rounded-2xl bg-surface py-1.5 shadow-[var(--shadow-pop)] ring-1 ring-border">
+        <div className="absolute left-0 top-full z-30 mt-1 min-w-40 overflow-hidden rounded-lg border border-border bg-surface py-1 shadow-[var(--shadow-pop)]">
           {[{ value: "all", label: "All" }, ...options].map((o) => (
             <button
               key={o.value}
@@ -61,7 +61,7 @@ function HeaderFilter({
               }`}
             >
               {o.label}
-              {o.value === value ? <Icon name="check" size={13} className="text-brand" /> : null}
+              {o.value === value ? <Icon name="check" size={13} className="text-accent" /> : null}
             </button>
           ))}
         </div>
@@ -94,7 +94,7 @@ export default function DataTable<T extends { id: string }>({
   };
 
   return (
-    <div className="card-premium overflow-hidden">
+    <div className="panel overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] border-collapse">
           <thead>
@@ -103,7 +103,7 @@ export default function DataTable<T extends { id: string }>({
                 <th
                   key={col.key}
                   style={{ width: col.width }}
-                  className={`px-6 py-4 ${ALIGN[col.align ?? "left"]} text-[13px] font-semibold text-muted`}
+                  className={`sticky top-12 z-10 bg-surface px-4 py-2.5 ${ALIGN[col.align ?? "left"]} text-[12px] font-semibold text-muted`}
                 >
                   <span className="inline-flex items-center">
                     {col.sortKey && onSortChange ? (
@@ -127,7 +127,7 @@ export default function DataTable<T extends { id: string }>({
                   </span>
                 </th>
               ))}
-              {rowActions ? <th className="w-20 px-6 py-4" /> : null}
+              {rowActions ? <th className="sticky top-12 z-10 w-14 bg-surface px-4 py-2.5" /> : null}
             </tr>
           </thead>
 
@@ -142,13 +142,13 @@ export default function DataTable<T extends { id: string }>({
                   {columns.map((col) => (
                     <td
                       key={col.key}
-                      className={`px-6 py-4 ${ALIGN[col.align ?? "left"]} text-sm text-muted-strong ${col.className ?? ""}`}
+                      className={`px-4 py-2.5 ${ALIGN[col.align ?? "left"]} text-[13px] text-muted-strong ${col.className ?? ""}`}
                     >
                       {col.cell(row)}
                     </td>
                   ))}
                   {rowActions ? (
-                    <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
                       {rowActions(row)}
                     </td>
                   ) : null}

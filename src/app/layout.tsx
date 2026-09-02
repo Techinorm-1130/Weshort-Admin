@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 import { ToastProvider } from "@/components/ui/Toast";
+import { THEME_SCRIPT } from "@/components/layout/ThemeToggle";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -19,7 +20,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${manrope.variable} antialiased`}>
+    // suppressHydrationWarning: THEME_SCRIPT stamps data-theme before hydration
+    <html lang="en" className={`${manrope.variable} antialiased`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="bg-background text-foreground">
         <ToastProvider>{children}</ToastProvider>
       </body>

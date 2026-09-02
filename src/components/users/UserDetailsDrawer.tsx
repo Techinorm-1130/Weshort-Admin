@@ -79,7 +79,7 @@ export default function UserDetailsDrawer({
       ) : (
         <>
           {/* -------------------------- identity ------------------------- */}
-          <div className="mb-6 flex items-center gap-4 rounded-[22px] bg-surface-2 p-4">
+          <div className="mb-6 flex items-center gap-4 rounded-lg bg-surface-2 p-4">
             <Avatar initials={initialsOf(viewer.name)} color={viewer.avatarColor} size={56} ring={false} />
             <div className="min-w-0 flex-1">
               <p className="truncate font-display text-lg font-bold text-ink">{viewer.name}</p>
@@ -103,7 +103,7 @@ export default function UserDetailsDrawer({
               { label: "Series", value: String(viewer.seriesWatched) },
               { label: "Devices", value: String(viewer.devices.length) },
             ].map((stat) => (
-              <div key={stat.label} className="rounded-[20px] bg-surface-2 p-4">
+              <div key={stat.label} className="rounded-lg bg-surface-2 p-4">
                 <p className="font-display text-xl font-bold text-ink">{stat.value}</p>
                 <p className="mt-1 text-xs text-muted">{stat.label}</p>
               </div>
@@ -112,7 +112,7 @@ export default function UserDetailsDrawer({
 
           {/* ------------------------- subscription ---------------------- */}
           <DrawerSection title="Subscription">
-            <div className="rounded-[20px] bg-surface-2 px-4">
+            <div className="rounded-lg bg-surface-2 px-4">
               <DrawerRow label="Plan">{planLabel(viewer.subscription.plan)}</DrawerRow>
               <DrawerRow label="Price">
                 {viewer.subscription.priceMonthly ? `€${viewer.subscription.priceMonthly.toFixed(2)} / month` : "Free"}
@@ -127,7 +127,7 @@ export default function UserDetailsDrawer({
 
           {/* ---------------------------- account ------------------------ */}
           <DrawerSection title="Account">
-            <div className="rounded-[20px] bg-surface-2 px-4">
+            <div className="rounded-lg bg-surface-2 px-4">
               <DrawerRow label="Status">{statusLabel(viewer.status)}</DrawerRow>
               <DrawerRow label="Joined">{formatDate(viewer.joinedAt)}</DrawerRow>
               <DrawerRow label="Last login">{formatDate(viewer.lastLoginAt, true)}</DrawerRow>
@@ -138,13 +138,13 @@ export default function UserDetailsDrawer({
           {/* ------------------------ watch history ---------------------- */}
           <DrawerSection title={`Recently watched (${viewer.watchHistory.length})`}>
             {viewer.watchHistory.length === 0 ? (
-              <p className="rounded-[20px] bg-surface-2 p-4 text-[13px] text-muted">Nothing watched yet.</p>
+              <p className="rounded-lg bg-surface-2 p-4 text-[13px] text-muted">Nothing watched yet.</p>
             ) : (
               <ul className="space-y-2.5">
                 {viewer.watchHistory.map((entry) => (
-                  <li key={entry.id} className="rounded-[20px] bg-surface-2 p-4">
+                  <li key={entry.id} className="rounded-lg bg-surface-2 p-4">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-surface-3 text-ink">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-3 text-ink">
                         <Icon name={entry.kind === "series" ? "layers" : "film"} size={17} />
                       </span>
                       <div className="min-w-0 flex-1">
@@ -168,8 +168,8 @@ export default function UserDetailsDrawer({
           <DrawerSection title={`Devices (${viewer.devices.length})`}>
             <ul className="space-y-2.5">
               {viewer.devices.map((device) => (
-                <li key={device.id} className="flex items-center gap-3 rounded-[20px] bg-surface-2 p-4">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-surface-3 text-ink">
+                <li key={device.id} className="flex items-center gap-3 rounded-lg bg-surface-2 p-4">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-3 text-ink">
                     <Icon name={DEVICE_ICONS[device.kind]} size={17} />
                   </span>
                   <div className="min-w-0 flex-1">

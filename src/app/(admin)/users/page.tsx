@@ -16,13 +16,13 @@ import { DateInput, Select, TextInput } from "@/components/ui/Fields";
 import Icon, { type IconName } from "@/components/ui/Icon";
 import { useToast } from "@/components/ui/Toast";
 import UserDetailsDrawer from "@/components/users/UserDetailsDrawer";
-import { PLAN_TONES, STATUS_FILTERS, STATUS_TONES, planLabel, statusLabel } from "@/components/users/userMeta";
+import { PLAN_TONES, STATUS_TONES, planLabel, statusLabel } from "@/components/users/userMeta";
 
 const STAT_CARDS: { key: string; label: string; icon: IconName; color: string }[] = [
-  { key: "total", label: "Total users", icon: "users", color: "#2f6bff" },
-  { key: "active", label: "Active users", icon: "user", color: "#3ddc84" },
-  { key: "premium", label: "Premium users", icon: "billing", color: "#e50914" },
-  { key: "newThisMonth", label: "New this month", icon: "sparkles", color: "#ffb020" },
+  { key: "total", label: "Total users", icon: "users", color: "#0d9488" },
+  { key: "active", label: "Active users", icon: "user", color: "#047857" },
+  { key: "premium", label: "Premium users", icon: "billing", color: "#7c3aed" },
+  { key: "newThisMonth", label: "New this month", icon: "sparkles", color: "#b45309" },
 ];
 
 export default function UsersPage() {
@@ -147,66 +147,78 @@ export default function UsersPage() {
       <PageHeader
         title="Users"
         count={list.total}
-        crumbs={[{ label: "Audience", icon: "users" }, { label: "Users" }]}
-        subtitle="Everyone with a WeShort viewing account."
+        icon="users"
+        iconColor="#0d9488"
+        crumbs={[{ label: "Audience" }, { label: "Users" }]}
+        activeTab={query.status ?? "all"}
+        tabs={[
+          { id: "all", label: "All users", icon: "users", color: "#0d9488", onSelect: () => setQuery({ status: "all" }) },
+          ...VIEWER_STATUS_OPTIONS.map((option) => ({
+            id: option.value,
+            label: option.label,
+            icon: (option.value === "active" ? "check" : option.value === "inactive" ? "clock" : "shield") as IconName,
+            color: option.value === "active" ? "#047857" : option.value === "inactive" ? "#b45309" : "#dc2626",
+            onSelect: () => setQuery({ status: option.value as ViewerStatus }),
+          })),
+        ]}
         actions={
-          <Button variant="secondary" icon="download" onClick={() => toast.success("User export queued")}>
-            Export CSV
-          </Button>
+          <>
+            <Button variant="ghost" icon="filter" onClick={() => setShowFilters((v) => !v)}>
+              Filters{activeFilters ? ` (${activeFilters})` : ""}
+            </Button>
+            <Button variant="secondary" icon="download" onClick={() => toast.success("User export queued")}>
+              Export
+            </Button>
+          </>
         }
       />
 
       {/* ------------------------------- stats -------------------------------- */}
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
         {statsLoading || !stats
-          ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-[26px]" />)
+          ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-lg" />)
           : STAT_CARDS.map((card) => (
-              <Card key={card.key} className="flex items-center gap-4">
+              <Card key={card.key} className="flex items-center gap-3">
                 <span
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px]"
-                  style={{ background: `${card.color}1f`, color: card.color }}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                  style={{ background: `${card.color}1a`, color: card.color }}
                 >
-                  <Icon name={card.icon} size={20} />
+                  <Icon name={card.icon} size={17} />
                 </span>
                 <div className="min-w-0">
-                  <p className="font-display text-2xl font-bold text-ink">
+                  <p className="font-display text-[19px] font-bold leading-none tabular-nums text-ink">
                     {formatNumber(stats[card.key as keyof typeof stats])}
                   </p>
-                  <p className="mt-0.5 text-[13px] text-muted">{card.label}</p>
+                  <p className="mt-1 text-[12px] text-muted">{card.label}</p>
                 </div>
               </Card>
             ))}
       </div>
 
       {/* ------------------------------ filters ------------------------------- */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h2 className="font-display text-xl font-bold tracking-tight text-ink">All users</h2>
-        <span className="text-[13px] text-muted underline underline-offset-4">{list.total} accounts</span>
-
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <SearchInput
-            value={query.search ?? ""}
-            onChange={(v) => setQuery({ search: v })}
-            placeholder="Search name or email"
-            className="w-full sm:w-64"
-          />
-          {STATUS_FILTERS.map((filter) => (
-            <Chip
-              key={filter.value}
-              active={(query.status ?? "all") === filter.value}
-              onClick={() => setQuery({ status: filter.value as never })}
-            >
-              {filter.label}
-            </Chip>
-          ))}
-          <Chip active={showFilters || activeFilters > 0} icon="filter" onClick={() => setShowFilters((v) => !v)}>
-            Filters{activeFilters ? ` (${activeFilters})` : ""}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <SearchInput
+          value={query.search ?? ""}
+          onChange={(v) => setQuery({ search: v })}
+          placeholder="Search name or email"
+          className="w-full sm:w-72"
+        />
+        {PLAN_OPTIONS.map((plan) => (
+          <Chip
+            key={plan.value}
+            active={query.plan === plan.value}
+            onClick={() => setQuery({ plan: query.plan === plan.value ? "all" : plan.value })}
+          >
+            {plan.label}
           </Chip>
-        </div>
+        ))}
+        <span className="ml-auto text-[12px] text-muted">
+          {list.total} account{list.total === 1 ? "" : "s"}
+        </span>
       </div>
 
       {showFilters ? (
-        <Card className="mb-4">
+        <Card className="mb-3">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Select
               label="Subscription"

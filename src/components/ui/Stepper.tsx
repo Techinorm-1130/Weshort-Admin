@@ -37,27 +37,23 @@ export default function Stepper({
               type="button"
               disabled={!clickable}
               onClick={() => clickable && onSelect(i)}
-              className={`flex min-w-0 flex-1 items-center gap-3 rounded-full py-2 pl-2 pr-4 text-left transition ${
+              className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-1.5 pl-1.5 pr-3 text-left transition ${
                 active
-                  ? "bg-ink text-on-ink"
+                  ? "bg-accent-soft text-ink"
                   : clickable
-                    ? "bg-surface text-muted-strong hover:bg-surface-2 hover:text-ink"
-                    : "bg-surface text-muted"
+                    ? "text-muted-strong hover:bg-surface-2 hover:text-ink"
+                    : "text-muted"
               } ${clickable ? "cursor-pointer" : "cursor-default"}`}
             >
               <span
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-bold ${
-                  active
-                    ? "bg-on-ink/15 text-on-ink"
-                    : done
-                      ? "bg-ok/15 text-ok"
-                      : "bg-surface-2 text-muted"
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[11px] font-bold ${
+                  active ? "bg-accent text-white" : done ? "bg-ok/15 text-ok" : "bg-surface-2 text-muted"
                 }`}
               >
                 {done ? <Icon name="check" size={14} /> : i + 1}
               </span>
               <span className="min-w-0">
-                <span className="block truncate text-[13px] font-semibold">{step.label}</span>
+                <span className="block truncate text-[12px] font-semibold">{step.label}</span>
                 {step.hint ? (
                   <span className={`block truncate text-[11px] ${active ? "opacity-70" : "text-muted"}`}>
                     {step.hint}

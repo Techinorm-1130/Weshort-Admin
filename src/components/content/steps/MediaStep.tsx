@@ -18,7 +18,7 @@ export default function MediaStep({
   const isSeries = draft.type === "series";
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <Card>
         <CardTitle title="Artwork" subtitle="Poster, thumbnail and hero banner" />
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -50,7 +50,7 @@ export default function MediaStep({
             title="Video files"
             subtitle="The main video is transcoded into the quality ladder automatically"
           />
-          <div className="space-y-5">
+          <div className="space-y-4">
             <VideoUploader
               label="Main video"
               required

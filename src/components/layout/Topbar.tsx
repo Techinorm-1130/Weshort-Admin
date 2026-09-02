@@ -1,123 +1,95 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { timeAgo } from "@/lib/format";
 import Icon, { type IconName } from "@/components/ui/Icon";
 import { Dropdown } from "@/components/ui/Overlays";
 import { useToast } from "@/components/ui/Toast";
+import ThemeToggle from "./ThemeToggle";
+import { LogoBadge } from "./Logo";
 
-/** Round control used inside and beside the floating bar. */
-function RoundButton({
-  icon, label, href, badge, dot, onClick, tone = "plain",
+function HeaderButton({
+  icon, label, dot, onClick,
 }: {
   icon: IconName;
   label: string;
-  href?: string;
-  badge?: number;
   dot?: boolean;
   onClick?: () => void;
-  tone?: "plain" | "ink" | "brand";
 }) {
-  const skin =
-    tone === "ink"
-      ? "bg-ink text-on-ink hover:bg-ink-soft"
-      : tone === "brand"
-        ? "bg-brand text-white hover:bg-brand-hover"
-        : "bg-surface-2 text-muted hover:text-ink";
-
-  const content = (
-    <>
-      <Icon name={icon} size={18} />
-      {badge ? (
-        <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold text-white">
-          {badge}
-        </span>
-      ) : null}
-      {dot && !badge ? (
-        <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-brand" />
-      ) : null}
-    </>
-  );
-
-  const className = `relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition ${skin}`;
-
-  return href ? (
-    <Link href={href} title={label} aria-label={label} className={className}>
-      {content}
-    </Link>
-  ) : (
-    <button title={label} aria-label={label} onClick={onClick} className={className}>
-      {content}
+  return (
+    <button
+      title={label}
+      aria-label={label}
+      onClick={onClick}
+      className="relative flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-ink"
+    >
+      <Icon name={icon} size={16} />
+      {dot ? <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-danger" /> : null}
     </button>
   );
 }
 
-export default function Topbar({
-  onOpenMenu, onToggleCollapse,
-}: {
-  onOpenMenu: () => void;
-  onToggleCollapse: () => void;
-}) {
+/** Slim workspace header: centred search, quiet actions, account menu. */
+export default function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
   const router = useRouter();
   const toast = useToast();
   const [search, setSearch] = useState("");
 
   return (
-    <div className="sticky top-0 z-30 bg-background/90 px-4 py-4 backdrop-blur lg:px-6">
-      <div className="flex items-center gap-3">
-        {/* the floating pill bar */}
-        <div className="bar-ink flex h-16 min-w-0 flex-1 items-center gap-3 rounded-full px-3">
-          <button
-            onClick={() => {
-              onOpenMenu();
-              onToggleCollapse();
-            }}
-            aria-label="Toggle menu"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-muted transition hover:text-ink"
-          >
-            <Icon name="menu" size={18} />
-          </button>
+    <header className="sticky top-0 z-30 flex h-12 items-center gap-2 border-b border-border bg-topbar px-3">
+      <button
+        onClick={onOpenMenu}
+        aria-label="Open sidebar"
+        className="flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-ink lg:hidden"
+      >
+        <Icon name="menu" size={17} />
+      </button>
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (search.trim()) router.push(`/users?search=${encodeURIComponent(search.trim())}`);
-            }}
-            className="relative min-w-0 flex-1"
-          >
-            <Icon name="search" size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search users"
-              className="h-10 w-full rounded-full bg-surface-2 pl-11 pr-4 text-sm text-ink placeholder:text-muted outline-none transition focus:bg-surface-3"
-            />
-          </form>
+      <span className="lg:hidden">
+        <LogoBadge size={30} radius={8} />
+      </span>
 
-          <RoundButton icon="bell" label="Notifications" dot onClick={() => toast.info("No new notification")} />
-          <RoundButton icon="upload" label="Upload content" href="/content/upload" tone="ink" />
-        </div>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (search.trim()) router.push(`/users?search=${encodeURIComponent(search.trim())}`);
+        }}
+        className="relative mx-auto w-full max-w-md"
+      >
+        <Icon name="search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search users"
+          className="h-8 w-full rounded-lg border border-border bg-surface-2 pl-8 pr-16 text-[13px] text-ink placeholder:text-muted/70 outline-none transition-[border-color,box-shadow,background-color] duration-150 hover:border-border-strong focus:border-accent focus:bg-surface focus:ring-[3px] focus:ring-accent/15"
+        />
+        <kbd className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-border px-1.5 py-0.5 text-[10px] font-medium text-muted sm:block">
+          Ctrl K
+        </kbd>
+      </form>
 
-        {/* account, outside the bar like the reference avatar */}
+      <div className="ml-auto flex items-center gap-0.5">
+        <ThemeToggle />
+        <HeaderButton icon="help" label="Help" onClick={() => toast.info("Docs are on the way")} />
+        <HeaderButton icon="bell" label="Notifications" dot onClick={() => toast.info("No new notification")} />
+
         <Dropdown
-          width="w-60"
+          width="w-56"
           trigger={({ toggle }) => (
             <button
               onClick={toggle}
               aria-label="Account"
-              className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-surface ring-1 ring-border transition hover:ring-border-strong"
+              className="ml-1 flex items-center gap-2 rounded-lg p-1 transition hover:bg-surface-2"
             >
-              <span className="grad-brand flex h-11 w-11 items-center justify-center rounded-full text-[13px] font-bold text-white">
+              <span className="grad-brand flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold text-white">
                 WS
               </span>
-              <span className="absolute bottom-3 right-3 h-3 w-3 rounded-full border-2 border-surface bg-ok" />
             </button>
           )}
           items={[
+            { label: "Team members", icon: "users", onSelect: () => router.push("/organisation/users") },
             { label: "Organisation settings", icon: "settings", onSelect: () => router.push("/organisation/settings") },
-            { label: "Users", icon: "users", onSelect: () => router.push("/organisation/users") },
             { label: "Plan and billing", icon: "billing", onSelect: () => router.push("/organisation/billing") },
             {
               label: "Log out",
@@ -131,7 +103,7 @@ export default function Topbar({
           ]}
         />
       </div>
-    </div>
+    </header>
   );
 }
 

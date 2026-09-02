@@ -19,7 +19,7 @@ export default function SettingsStep({
   errors: ContentErrors;
 }) {
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <Card>
         <CardTitle title="Access" subtitle="Who can watch this title" />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -30,12 +30,12 @@ export default function SettingsStep({
                 key={option.value}
                 type="button"
                 onClick={() => patch({ access: option.value })}
-                className={`flex items-center gap-3 rounded-[20px] p-4 text-left transition ${
+                className={`flex items-center gap-3 rounded-lg p-4 text-left transition ${
                   active ? "bg-ink text-on-ink" : "bg-surface-2 text-muted-strong hover:bg-surface-3"
                 }`}
               >
                 <span
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] ${
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md ${
                     active ? "bg-on-ink/15" : "bg-surface-3 text-ink"
                   }`}
                 >
@@ -69,7 +69,7 @@ export default function SettingsStep({
       <Card>
         <CardTitle title="Options" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="rounded-[20px] bg-surface-2 px-4 py-3.5">
+          <div className="rounded-lg bg-surface-2 px-4 py-3.5">
             <Toggle
               checked={draft.featured}
               onChange={(v) => patch({ featured: v })}
@@ -77,7 +77,7 @@ export default function SettingsStep({
               description="Pins the title in the home hero carousel."
             />
           </div>
-          <div className="rounded-[20px] bg-surface-2 px-4 py-3.5">
+          <div className="rounded-lg bg-surface-2 px-4 py-3.5">
             <Toggle
               checked={draft.allowDownload}
               onChange={(v) => patch({ allowDownload: v })}

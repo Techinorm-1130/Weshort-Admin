@@ -18,7 +18,7 @@ export function Tabs({
 }) {
   return (
     <div
-      className={`flex gap-1.5 overflow-x-auto rounded-full border border-border bg-surface p-1.5 ${className}`}
+      className={`flex gap-1 overflow-x-auto border-b border-border ${className}`}
     >
       {tabs.map((tab) => {
         const isActive = tab.id === active;
@@ -26,9 +26,8 @@ export function Tabs({
           <button
             key={tab.id}
             onClick={() => onChange(tab.id)}
-            className={`relative shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold transition ${
-              isActive ? "bg-ink text-on-ink" : "text-muted hover:bg-surface-2 hover:text-ink"
-            }`}
+            data-active={isActive}
+            className="view-tab shrink-0"
           >
             {tab.label}
             {tab.badge ? (
@@ -53,16 +52,16 @@ export function SegmentedControl({
   onChange: (v: string) => void;
   size?: "sm" | "md";
 }) {
-  const pad = size === "sm" ? "px-3 py-1.5 text-[13px]" : "px-4 py-2 text-sm";
+  const pad = size === "sm" ? "px-2.5 py-1 text-[12px]" : "px-3 py-1.5 text-[13px]";
   return (
-    <div className="inline-flex rounded-full bg-surface-2 p-1 ring-1 ring-border">
+    <div className="inline-flex rounded-lg border border-border bg-surface-2 p-0.5">
       {options.map((o) => (
         <button
           key={o.value}
           disabled={o.disabled}
           onClick={() => onChange(o.value)}
-          className={`rounded-full font-semibold transition disabled:opacity-40 ${pad} ${
-            o.value === value ? "bg-ink text-on-ink" : "text-muted hover:text-ink"
+          className={`rounded-md font-semibold transition disabled:opacity-40 ${pad} ${
+            o.value === value ? "bg-surface text-ink shadow-[var(--shadow-card)]" : "text-muted hover:text-ink"
           }`}
         >
           {o.label}

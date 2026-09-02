@@ -38,3 +38,27 @@ export default function Logo({
     </span>
   );
 }
+
+/**
+ * Compact brand badge — white "WS" on the WeShort red tile. Used wherever the
+ * lockup is too wide: the rail, the workspace chip and the mobile header.
+ */
+export function LogoBadge({
+  size = 40, radius = 12, className = "",
+}: {
+  size?: number;
+  /** Corner radius in px, so the badge can sit in tiles of different sizes. */
+  radius?: number;
+  className?: string;
+}) {
+  return (
+    <span
+      aria-label="WeShort"
+      role="img"
+      style={{ width: size, height: size, borderRadius: radius, fontSize: size * 0.4 }}
+      className={`inline-flex shrink-0 items-center justify-center bg-brand font-display font-bold leading-none tracking-tight text-white ${className}`}
+    >
+      WS
+    </span>
+  );
+}

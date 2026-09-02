@@ -58,12 +58,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((t) => (
           <div
             key={t.id}
-            className="pointer-events-auto flex animate-fade-up items-start gap-3 overflow-hidden rounded-2xl bg-surface p-4 shadow-[var(--shadow-pop)] ring-1 ring-border"
+            className="pointer-events-auto flex animate-fade-up items-start gap-2.5 overflow-hidden rounded-lg border border-border bg-surface p-3 shadow-[var(--shadow-pop)]"
           >
             <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${TONES[t.tone].bar}`}>
               <Icon name={TONES[t.tone].icon} size={13} className="text-white" />
             </span>
-            <p className="flex-1 text-sm text-muted-strong">{t.message}</p>
+            <p className="flex-1 text-[13px] text-muted-strong">{t.message}</p>
             <button
               onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
               className="text-muted transition hover:text-ink"

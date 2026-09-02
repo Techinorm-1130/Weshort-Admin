@@ -34,17 +34,17 @@ export default function Drawer({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 animate-fade-in bg-black/75 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 animate-fade-in bg-black/40" onClick={onClose} />
 
       <aside
         role="dialog"
         aria-modal="true"
-        className={`relative flex h-full w-full ${width} animate-fade-up flex-col bg-surface shadow-[var(--shadow-pop)]`}
+        className={`relative flex h-full w-full ${width} animate-fade-up flex-col border-l border-border bg-surface shadow-[var(--shadow-pop)]`}
       >
-        <header className="flex items-start justify-between gap-4 border-b border-line px-6 py-5">
+        <header className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-3">
-              <h2 className="font-display text-xl font-bold tracking-tight text-ink">{title}</h2>
+              <h2 className="font-display text-[17px] font-bold tracking-tight text-ink">{title}</h2>
               {badge}
             </div>
             {subtitle ? <div className="mt-1.5 text-[13px] text-muted">{subtitle}</div> : null}
@@ -52,16 +52,16 @@ export default function Drawer({
           <button
             onClick={onClose}
             aria-label="Close"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-muted transition hover:bg-surface-3 hover:text-ink"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-ink"
           >
             <Icon name="close" size={18} />
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
 
         {footer ? (
-          <footer className="flex flex-wrap items-center justify-end gap-3 border-t border-line px-6 py-4">
+          <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-line px-5 py-3">
             {footer}
           </footer>
         ) : null}
@@ -91,7 +91,7 @@ export function DrawerSection({
   return (
     <section className="mb-6 last:mb-0">
       <header className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="text-[12px] font-bold uppercase tracking-[0.14em] text-muted">{title}</h3>
+        <h3 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">{title}</h3>
         {action}
       </header>
       {children}

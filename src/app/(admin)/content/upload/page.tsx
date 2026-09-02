@@ -147,7 +147,9 @@ export default function ContentUploadPage() {
     <>
       <PageHeader
         title="Upload content"
-        crumbs={[{ label: "Catalogue", icon: "film" }, { label: "Upload" }]}
+        icon="upload"
+        iconColor="#0369a1"
+        crumbs={[{ label: "Catalogue" }, { label: "Upload content" }]}
         subtitle="Movies, series and episodes — five steps from source file to live."
         backHref="/users"
         actions={
@@ -169,12 +171,12 @@ export default function ContentUploadPage() {
       />
 
       {/* ------------------------------- stepper ------------------------------ */}
-      <Card className="mb-5" padded={false}>
-        <div className="px-5 py-4">
+      <Card className="mb-4" padded={false}>
+        <div className="px-4 py-3">
           <Stepper steps={STEPS} current={step} furthest={furthest} onSelect={goTo} />
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 border-t border-line px-5 py-3 text-[13px] text-muted">
+        <div className="flex flex-wrap items-center gap-3 border-t border-line px-4 py-2 text-[12px] text-muted">
           <Badge tone={draft.status === "published" ? "ok" : "neutral"}>{draft.status}</Badge>
           {savedId ? <span>Draft saved</span> : <span>Not saved yet</span>}
           {pending ? (
@@ -195,7 +197,7 @@ export default function ContentUploadPage() {
       </Card>
 
       {/* -------------------------------- steps ------------------------------- */}
-      <div className="animate-fade-up">
+      <div className="relative z-10 animate-fade-up">
         {step === 0 ? (
           <BasicInfoStep draft={draft} patch={patch} errors={visibleErrors(0)} taxonomies={taxonomies} />
         ) : null}
@@ -214,7 +216,7 @@ export default function ContentUploadPage() {
       </div>
 
       {/* ------------------------------ step nav ------------------------------ */}
-      <div className="mt-6 flex flex-wrap items-center gap-3">
+      <div className="mt-5 flex flex-wrap items-center gap-2">
         <Button
           variant="secondary"
           icon="arrow-left"
@@ -257,7 +259,7 @@ export default function ContentUploadPage() {
           </Button>
         }
       >
-        <div className="overflow-hidden rounded-[22px] bg-surface-2">
+        <div className="overflow-hidden rounded-lg border border-border">
           <div className="flex aspect-video w-full items-center justify-center bg-black">
             {draft.banner || draft.thumbnail ? (
               // eslint-disable-next-line @next/next/no-img-element

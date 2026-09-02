@@ -18,6 +18,7 @@ import type {
   Taxonomies,
   Viewer,
   ViewerStats,
+  ViewerStatus,
 } from "@/types";
 import { http } from "./http";
 
@@ -120,8 +121,12 @@ export const encodingApi = {
 
 /* -------------------------------- viewers ------------------------------- */
 
-/** Audience accounts. Extends ListQuery with the OTT-specific filters. */
-export interface ViewerQuery extends ListQuery {
+/**
+ * Audience accounts. Same shape as ListQuery, except `status` carries the
+ * viewer states rather than the catalogue ones, plus the OTT-only filters.
+ */
+export interface ViewerQuery extends Omit<ListQuery, "status"> {
+  status?: ViewerStatus | "all";
   plan?: string;
   country?: string;
   from?: string;

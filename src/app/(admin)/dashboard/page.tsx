@@ -98,7 +98,7 @@ export default function DashboardPage() {
       {/* ------------------------------ stat cards ---------------------------- */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
         {loading || !data
-          ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[360px] rounded-[28px]" />)
+          ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-72 rounded-lg" />)
           : data.stats.map((stat, i) => {
               const href = STAT_LINKS[stat.key] ?? "/users";
               const filled = i === 0;
@@ -203,7 +203,7 @@ export default function DashboardPage() {
           className="xl:col-span-8"
           head={
             <CardHead
-              avatar={<TabIcon icon="chart" className="bg-brand-soft text-brand" />}
+              avatar={<TabIcon icon="chart" className="bg-accent-soft text-accent" />}
               title="Bandwidth"
               subtitle="this billing period"
             />
@@ -313,7 +313,7 @@ export default function DashboardPage() {
                 <SelectPill
                   leading={
                     <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-3">
-                      <span className="h-2.5 w-2.5 rounded-full bg-brand" />
+                      <span className="h-2.5 w-2.5 rounded-full bg-accent" />
                     </span>
                   }
                   onClick={() => router.push("/organisation/billing")}
@@ -390,7 +390,7 @@ export default function DashboardPage() {
           className="xl:col-span-8"
           head={
             <CardHead
-              avatar={<TabIcon icon="bell" className="bg-brand-soft text-brand" />}
+              avatar={<TabIcon icon="bell" className="bg-accent-soft text-accent" />}
               title="Activity"
               subtitle="catalogue, encoding and account"
             />

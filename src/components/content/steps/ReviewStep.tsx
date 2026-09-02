@@ -25,7 +25,7 @@ export default function ReviewStep({
   const episodes = draft.seasons.reduce((n, s) => n + s.episodes.length, 0);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {problems.length ? (
         <Card className="border-danger/30">
           <CardTitle
@@ -51,7 +51,7 @@ export default function ReviewStep({
       ) : (
         <Card>
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-ok/15 text-ok">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-ok/15 text-ok">
               <Icon name="check" size={19} />
             </span>
             <div>
@@ -76,7 +76,7 @@ export default function ReviewStep({
               <div key={art.label}>
                 <div
                   style={{ aspectRatio: art.ratio }}
-                  className="flex w-full items-center justify-center overflow-hidden rounded-[16px] bg-surface-2 text-muted"
+                  className="flex w-full items-center justify-center overflow-hidden rounded-md bg-surface-2 text-muted"
                 >
                   {art.src ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -103,7 +103,7 @@ export default function ReviewStep({
               </div>
             }
           />
-          <div className="rounded-[20px] bg-surface-2 px-4">
+          <div className="rounded-lg bg-surface-2 px-4">
             <DrawerRow label="Release date">{draft.releaseDate ? formatDate(draft.releaseDate) : "—"}</DrawerRow>
             <DrawerRow label="Duration">
               {draft.durationSec ? formatDuration(draft.durationSec) : "—"}
@@ -120,7 +120,7 @@ export default function ReviewStep({
       <Card>
         <CardTitle title="Media" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="rounded-[20px] bg-surface-2 px-4">
+          <div className="rounded-lg bg-surface-2 px-4">
             <DrawerRow label="Main video">
               {draft.video ? `${draft.video.name} · ${formatBytes(draft.video.sizeBytes)}` : "—"}
             </DrawerRow>
@@ -131,7 +131,7 @@ export default function ReviewStep({
             <DrawerRow label="Trailer">{draft.trailer ? draft.trailer.name : "—"}</DrawerRow>
           </div>
 
-          <div className="rounded-[20px] bg-surface-2 px-4">
+          <div className="rounded-lg bg-surface-2 px-4">
             <DrawerRow label="Audio">{labelsOf(AUDIO_LANGUAGES, draft.audioLanguages) || "—"}</DrawerRow>
             <DrawerRow label="Subtitles">
               {draft.subtitles.length ? draft.subtitles.map((s) => s.label).join(", ") : "—"}
@@ -148,7 +148,7 @@ export default function ReviewStep({
 
       <Card>
         <CardTitle title="Publication" />
-        <div className="rounded-[20px] bg-surface-2 px-4">
+        <div className="rounded-lg bg-surface-2 px-4">
           <DrawerRow label="Publish date">{draft.publishAt ? formatDate(draft.publishAt) : "Immediately"}</DrawerRow>
           <DrawerRow label="Expiry date">{draft.expiryAt ? formatDate(draft.expiryAt) : "No expiry"}</DrawerRow>
           <DrawerRow label="Current status">{draft.status}</DrawerRow>
