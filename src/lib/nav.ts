@@ -27,7 +27,10 @@ export const NAV: NavSection[] = [
   {
     id: "catalogue",
     label: "Catalogue",
-    items: [{ label: "Upload content", href: "/content/upload", icon: "upload", color: "#0369a1" }],
+    items: [
+      { label: "Content library", href: "/content", icon: "film", color: "#0369a1" },
+      { label: "Upload content", href: "/content/upload", icon: "upload", color: "#0d9488" },
+    ],
   },
   {
     id: "site",

@@ -99,36 +99,62 @@ export function buildViewers(): Viewer[] {
 
 /* ------------------------------- content -------------------------------- */
 
+/** The team members who upload — mirrors the organisation user list. */
+export const UPLOADERS = [
+  { id: "usr_ws", name: "Sarin Kumar", initials: "SK", color: "#0d9488", role: "owner" },
+  { id: "usr_ml", name: "Marco Lombardi", initials: "ML", color: "#0369a1", role: "admin" },
+  { id: "usr_sa", name: "Sara Aiello", initials: "SA", color: "#7c3aed", role: "editor" },
+  { id: "usr_gp", name: "Giulio Pace", initials: "GP", color: "#b45309", role: "contributor" },
+];
+
+const CONTENT_TITLES = [
+  "Super Funny Button", "Babau", "Eidos", "Danzamorfosi", "Il silenzio del sudore",
+  "Cojocabron", "Blue Hour", "The Last Reel", "Kintsugi", "Notturno",
+  "Pane e sale", "La casa dei ricordi", "Marea", "Ferro", "Lettera al mare",
+  "Sotto la pioggia", "Petit Matin", "Origami",
+];
+
 export function buildContents(): ContentItem[] {
   const rand = rng(909);
+  const statuses = ["published", "draft", "published", "scheduled", "published", "draft"] as const;
 
-  return TITLES.slice(0, 6).map((title, i) => {
-    const type = i % 3 === 2 ? "series" : "movie";
-    const status = (["published", "draft", "published", "scheduled"] as const)[i % 4];
+  return CONTENT_TITLES.map((title, i) => {
+    const type: ContentItem["type"] = i % 5 === 2 ? "series" : "movie";
+    const status = statuses[i % statuses.length];
+    // uploads spread unevenly across the team, the way they are in practice
+    const uploader = UPLOADERS[i % 3 === 0 ? 0 : i % 4];
+    const month = String(1 + (i % 8)).padStart(2, "0");
+    const day = String(1 + ((i * 3) % 27)).padStart(2, "0");
 
     return {
       id: `cnt_${String(i + 1).padStart(3, "0")}`,
       type,
+      uploadedBy: {
+        id: uploader.id,
+        name: uploader.name,
+        initials: uploader.initials,
+        color: uploader.color,
+      },
       title,
       shortDescription: `${title} — a WeShort original.`,
       description: `${title} follows a handful of characters through a single decisive moment.`,
       poster: null,
       thumbnail: null,
       banner: null,
-      releaseDate: `2026-0${1 + (i % 8)}-1${i % 9}`,
+      releaseDate: `2026-${month}-${day}`,
       durationSec: 900 + Math.round(rand() * 4000),
       language: i % 2 === 0 ? "en" : "it",
-      genres: [["drama"], ["comedy"], ["thriller"]][i % 3],
-      category: "short-film",
+      genres: [["drama"], ["comedy"], ["thriller"], ["documentary"]][i % 4],
+      category: type === "series" ? "series" : "short-film",
       country: i % 2 === 0 ? "it" : "in",
       ageRating: ["all-audiences", "12", "16"][i % 3],
       video: null,
       trailer: null,
       audioLanguages: i % 2 === 0 ? ["en", "it"] : ["ta", "en"],
       subtitles: [],
-      access: i % 2 === 0 ? "premium" : "free",
+      access: i % 3 === 0 ? "free" : "premium",
       status,
-      publishAt: `2026-0${1 + (i % 8)}-15`,
+      publishAt: `2026-${month}-15`,
       expiryAt: "",
       featured: i === 0,
       allowDownload: i % 3 === 0,
@@ -146,19 +172,18 @@ export function buildContents(): ContentItem[] {
                   title: `Episode ${n}`,
                   description: "",
                   durationSec: 600 + n * 120,
-                  releaseDate: `2026-0${1 + (i % 8)}-2${n}`,
+                  releaseDate: `2026-${month}-2${n}`,
                   thumbnail: null,
                   video: null,
                 })),
               },
             ]
           : [],
-      createdAt: `2026-0${1 + (i % 8)}-01T10:00:00.000Z`,
-      updatedAt: `2026-08-${String(20 + (i % 8)).padStart(2, "0")}T10:00:00.000Z`,
+      createdAt: `2026-${month}-${day}T${String(9 + (i % 9)).padStart(2, "0")}:20:00.000Z`,
+      updatedAt: `2026-08-${String(10 + (i % 19)).padStart(2, "0")}T10:00:00.000Z`,
     } satisfies ContentItem;
   });
 }
-
 
 /* ----------------------------- landing page ----------------------------- */
 

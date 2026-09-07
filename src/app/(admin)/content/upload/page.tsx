@@ -33,6 +33,8 @@ function emptyDraft(): ContentItem {
   return {
     id: "",
     type: "movie",
+    // the signed-in member; the backend will stamp this server-side
+    uploadedBy: { id: "usr_ws", name: "Sarin Kumar", initials: "SK", color: "#0d9488" },
     title: "",
     shortDescription: "",
     description: "",
@@ -139,7 +141,7 @@ export default function ContentUploadPage() {
     if (published) {
       setDraft((prev) => ({ ...prev, status: published.status }));
       toast.success(published.status === "scheduled" ? "Content scheduled" : "Content published");
-      router.push("/users");
+      router.push("/content");
     }
   };
 
@@ -148,10 +150,16 @@ export default function ContentUploadPage() {
       <PageHeader
         title="Upload content"
         icon="upload"
-        iconColor="#0369a1"
+        iconColor="#0d9488"
         crumbs={[{ label: "Catalogue" }, { label: "Upload content" }]}
+        activeTab="upload"
+        tabs={[
+          { id: "library", label: "Library", icon: "layers", color: "#0369a1", href: "/content" },
+          { id: "mine", label: "My uploads", icon: "user", color: "#0d9488", href: "/content" },
+          { id: "upload", label: "New upload", icon: "upload", color: "#7c3aed", href: "/content/upload" },
+        ]}
         subtitle="Movies, series and episodes — five steps from source file to live."
-        backHref="/users"
+        backHref="/content"
         actions={
           <>
             <Button variant="ghost" onClick={() => setConfirmCancel(true)}>
@@ -298,7 +306,7 @@ export default function ContentUploadPage() {
         message="Everything entered in the wizard is lost. Save as draft first if you want to come back to it."
         onConfirm={() => {
           setConfirmCancel(false);
-          router.push("/users");
+          router.push("/content");
         }}
       />
     </>

@@ -422,9 +422,26 @@ export interface SeasonItem {
   episodes: EpisodeItem[];
 }
 
+/** Upload totals for one team member. */
+export interface UploaderStats {
+  member: Actor;
+  role: string;
+  total: number;
+  published: number;
+  draft: number;
+  scheduled: number;
+  movies: number;
+  series: number;
+  episodes: number;
+  totalDurationSec: number;
+  lastUploadAt: string;
+}
+
 export interface ContentItem {
   id: ID;
   type: ContentType;
+  /** Team member who uploaded the title — drives the per-member library. */
+  uploadedBy: Actor;
   title: string;
   shortDescription: string;
   description: string;

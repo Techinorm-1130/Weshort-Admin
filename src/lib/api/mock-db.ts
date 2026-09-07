@@ -22,6 +22,7 @@ import type {
   Person,
   Project,
   Taxonomies,
+  UploaderStats,
   Viewer,
   ViewerStats,
 } from "@/types";
@@ -41,7 +42,7 @@ import {
   statSeries,
   taxonomies,
 } from "./seed";
-import { buildContents, buildLandingPage, buildViewers } from "./seed-ott";
+import { UPLOADERS, buildContents, buildLandingPage, buildViewers } from "./seed-ott";
 
 type Row = { id: string };
 
@@ -152,6 +153,14 @@ function paginate<T extends Row>(rows: T[], params: URLSearchParams): Paginated<
     items = items.filter((r) => {
       const f = fields(r);
       return f.kind === type || f.sourceType === type || f.role === type || f.state === type;
+    });
+  }
+
+  const uploadedBy = params.get("uploadedBy");
+  if (uploadedBy && uploadedBy !== "all") {
+    items = items.filter((r) => {
+      const owner = fields(r).uploadedBy as { id?: string } | undefined;
+      return owner?.id === uploadedBy;
     });
   }
 
@@ -297,9 +306,11 @@ function blankUser(): OrgUser {
 }
 
 function blankContent(type: ContentItem["type"]): ContentItem {
+  const me = UPLOADERS[0];
   return {
     id: makeId("cnt"),
     type,
+    uploadedBy: { id: me.id, name: me.name, initials: me.initials, color: me.color },
     title: "",
     shortDescription: "",
     description: "",
@@ -562,6 +573,31 @@ export function handleMock<T>(method: string, rawPath: string, body?: unknown): 
 
     /* ------------------------------ contents ---------------------------- */
     case "contents": {
+      // Upload totals per team member, for the "by member" library view.
+      if (method === "GET" && id === "stats") {
+        const stats: UploaderStats[] = UPLOADERS.map((member) => {
+          const mine = db.contents.filter((c) => c.uploadedBy.id === member.id);
+          const episodes = mine.reduce(
+            (sum, c) => sum + c.seasons.reduce((n, season) => n + season.episodes.length, 0),
+            0,
+          );
+          return {
+            member: { id: member.id, name: member.name, initials: member.initials, color: member.color },
+            role: member.role,
+            total: mine.length,
+            published: mine.filter((c) => c.status === "published").length,
+            draft: mine.filter((c) => c.status === "draft").length,
+            scheduled: mine.filter((c) => c.status === "scheduled").length,
+            movies: mine.filter((c) => c.type === "movie").length,
+            series: mine.filter((c) => c.type === "series").length,
+            episodes,
+            totalDurationSec: mine.reduce((sum, c) => sum + c.durationSec, 0),
+            lastUploadAt: mine.map((c) => c.createdAt).sort().at(-1) ?? "",
+          };
+        });
+        return as(stats.sort((a, b) => b.total - a.total));
+      }
+
       if (method === "GET" && !id) return as(paginate(db.contents, params));
       if (method === "GET" && id) return as(findOr404(db.contents, id));
       if (method === "POST" && !id) {

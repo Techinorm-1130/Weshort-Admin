@@ -16,6 +16,7 @@ import type {
   Person,
   Project,
   Taxonomies,
+  UploaderStats,
   Viewer,
   ViewerStats,
   ViewerStatus,
@@ -143,8 +144,15 @@ export const viewerApi = {
 
 /* -------------------------------- contents ------------------------------ */
 
+/** Library filters: the standard list query plus the uploader. */
+export interface ContentQuery extends ListQuery {
+  uploadedBy?: string;
+}
+
 export const contentApi = {
-  list: (q?: ListQuery) => http.get<Paginated<ContentItem>>("/contents", q as Record<string, unknown>),
+  list: (q?: ContentQuery) => http.get<Paginated<ContentItem>>("/contents", q as Record<string, unknown>),
+  /** Upload totals per team member. */
+  byMember: () => http.get<UploaderStats[]>("/contents/stats"),
   get: (id: string) => http.get<ContentItem>(`/contents/${id}`),
   create: (payload: Partial<ContentItem>) => http.post<ContentItem>("/contents", payload),
   update: (id: string, payload: Partial<ContentItem>) => http.patch<ContentItem>(`/contents/${id}`, payload),
