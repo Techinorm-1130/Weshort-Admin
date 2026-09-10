@@ -15,8 +15,21 @@ import { findDuplicate, queueProcessing } from "@/server/uploads/processing";
 import { cors, corsPreflight } from "@/server/uploads/cors";
 
 export const dynamic = "force-dynamic";
-/** Large bodies stream through; nothing is buffered in memory. */
-export const maxDuration = 3600;
+
+/**
+ * How long the platform lets this function run.
+ *
+ * The body streams through and nothing is buffered, but that does not exempt it
+ * from the host's ceiling — and asking for more than the plan allows is refused
+ * when the deployment is *created*, after a build that looks perfectly green.
+ * This asked for an hour, which no plan permits. 60s is the limit everywhere;
+ * raise it only as far as yours actually goes.
+ *
+ * A file too large to arrive inside that window should not come through a
+ * function at all — it wants a signed URL straight to object storage, which is
+ * the same change that replaces the local disk in server/uploads/store.ts.
+ */
+export const maxDuration = 60;
 
 type Ctx = { params: Promise<{ id: string }> };
 
