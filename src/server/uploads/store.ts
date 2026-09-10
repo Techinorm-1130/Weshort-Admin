@@ -27,15 +27,19 @@ const DEFAULT_EXTENSIONS = ["mp4", "mov", "mkv", "webm", "m4v"];
 const DEFAULT_MIME = ["video/mp4", "video/quicktime", "video/x-matroska", "video/webm"];
 
 /**
- * Whether a blob store is attached.
+ * Whether client uploads can actually be issued.
  *
- * Not simply BLOB_READ_WRITE_TOKEN: on Vercel the SDK authenticates with an
- * OIDC token it fetches at runtime, so the integration supplies BLOB_STORE_ID
- * and no read-write token at all. Checking only for the token declared a
- * perfectly good store missing.
+ * Specifically the read-write token, not merely a connected store. The SDK
+ * authenticates most calls with an OIDC token it fetches at runtime on Vercel,
+ * which is why the integration supplies BLOB_STORE_ID and no token — but
+ * minting the short-lived token a browser uploads with is not one of those
+ * calls, and it fails without a read-write token.
+ *
+ * Treating a store id as sufficient made this advertise a 10 GB ceiling it
+ * could not honour, which is a worse failure than the small one it replaced:
+ * the file would be accepted and then die at the token exchange.
  */
-export const hasBlobStore = () =>
-  Boolean(process.env.BLOB_READ_WRITE_TOKEN ?? process.env.BLOB_STORE_ID);
+export const hasBlobStore = () => Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 
 /** Limits come from here, not from the components. */
 export function uploadConfig(): UploadConfig {
