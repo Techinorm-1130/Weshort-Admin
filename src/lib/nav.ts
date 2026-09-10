@@ -29,8 +29,14 @@ export const NAV: NavSection[] = [
     label: "Catalogue",
     items: [
       { label: "Content library", href: "/content", icon: "film", color: "#0369a1" },
-      { label: "Video uploads", href: "/videos", icon: "upload", color: "#0d9488" },
-      { label: "Upload content", href: "/content/upload", icon: "layers", color: "#7c3aed" },
+      { label: "Upload content", href: "/content/upload", icon: "upload", color: "#0d9488" },
+      /*
+       * "Video files" (/videos) is hidden: a title's videos are managed from the
+       * upload wizard, and the raw file list only invited confusion — one
+       * submission stores a film and a trailer, which read as a duplicate there.
+       * The page and its API are untouched; the upload dock still links to it,
+       * and putting the line back restores it to the sidebar.
+       */
     ],
   },
   {

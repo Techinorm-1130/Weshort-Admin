@@ -3,11 +3,10 @@
  * ------------------------------------------------------------------------ */
 
 import { NextResponse } from "next/server";
-import { createReadStream } from "node:fs";
-import { Readable } from "node:stream";
 import type { ReadableStream as WebReadableStream } from "node:stream/web";
 import {
-  getAsset, removeThumbnail, sizeOfFile, thumbPathFor, updateAsset, writeThumbnail,
+  getAsset, readRange, removeThumbnail, sizeOfFile, thumbPathFor, updateAsset, webStreamFrom,
+  writeThumbnail,
 } from "@/server/uploads/store";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +19,7 @@ export async function GET(_request: Request, ctx: Ctx) {
   const size = await sizeOfFile(file);
   if (!size) return new NextResponse(null, { status: 404 });
 
-  const stream = Readable.toWeb(createReadStream(file)) as unknown as ReadableStream;
+  const stream = webStreamFrom(readRange(file, 0, size - 1));
   return new NextResponse(stream, {
     headers: {
       "Content-Type": "image/jpeg",

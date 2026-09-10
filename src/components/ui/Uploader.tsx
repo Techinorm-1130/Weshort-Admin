@@ -2,6 +2,7 @@
 
 import { useRef, useState, type DragEvent } from "react";
 import { formatBytes } from "@/lib/format";
+import { displayableImage, uploadImage } from "@/lib/upload/client";
 import Icon from "./Icon";
 
 /* ------------------------------- file drop ------------------------------ */
@@ -117,22 +118,39 @@ export function FileRow({
 
 /* ------------------------------- image drop ----------------------------- */
 
+/**
+ * Artwork slot.
+ *
+ * The file is uploaded and the record keeps the URL. It used to keep a base64
+ * data URL instead, which meant a multi-megabyte poster travelled inside every
+ * copy of the row — and the public site, which had the same field as an object
+ * URL, showed a broken image here. Both go through /api/images now.
+ */
 export function ImageDrop({
   ratio, value, onChange, label,
 }: {
   ratio: string;
   value?: string;
-  onChange: (dataUrl: string | undefined) => void;
+  onChange: (url: string | undefined) => void;
   label?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [w, h] = ratio.split(":").map(Number);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState("");
+  const src = displayableImage(value);
 
-  const pick = (file?: File) => {
+  const pick = async (file?: File) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => onChange(String(reader.result));
-    reader.readAsDataURL(file);
+    setProblem("");
+    setBusy(true);
+    try {
+      onChange(await uploadImage(file));
+    } catch (error) {
+      setProblem(error instanceof Error ? error.message : "Could not upload that image");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -148,11 +166,22 @@ export function ImageDrop({
           type="file"
           accept="image/*"
           hidden
-          onChange={(e) => pick(e.target.files?.[0])}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            void pick(file);
+          }}
         />
-        {value ? (
+        {busy ? (
+          <span className="flex h-full w-full items-center justify-center text-muted">
+            <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.3" strokeWidth="3" />
+              <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+            </svg>
+          </span>
+        ) : src ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={value} alt="" className="h-full w-full object-cover" />
+          <img src={src} alt="" className="h-full w-full object-cover" />
         ) : (
           <span className="flex h-full w-full items-center justify-center text-muted transition group-hover:text-ink">
             <Icon name="upload" size={26} />
@@ -172,6 +201,7 @@ export function ImageDrop({
         ) : null}
       </button>
       <span className="text-xs text-muted">{label ?? ratio}</span>
+      {problem ? <span className="text-[11px] text-danger">{problem}</span> : null}
     </div>
   );
 }

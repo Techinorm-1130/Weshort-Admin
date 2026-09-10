@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { contentApi, taxonomyApi } from "@/lib/api/resources";
 import { CURRENT_USER, IS_REVIEWER } from "@/lib/session";
 import { formatDate } from "@/lib/format";
@@ -81,6 +81,8 @@ export default function ContentUploadPage() {
 
   const [draft, setDraft] = useState<ContentItem>(emptyDraft);
   const [step, setStep] = useState(0);
+  /** The top of the step body, so a step change can bring it into view. */
+  const stepsTop = useRef<HTMLDivElement>(null);
   const [furthest, setFurthest] = useState(0);
   /** Steps the admin has attempted to leave — errors only show after that. */
   const [visited, setVisited] = useState<number[]>([]);
@@ -119,9 +121,26 @@ export default function ContentUploadPage() {
   const visibleErrors = (index: number): ContentErrors =>
     visited.includes(index) || isLast ? errorsForStep(errors, index) : {};
 
+  /**
+   * Moves to a step and puts its start back under the eye. Without the scroll,
+   * pressing Continue at the foot of a long step opens the next one already
+   * scrolled to its bottom.
+   */
   const goTo = (index: number) => {
     setStep(index);
     setFurthest((f) => Math.max(f, index));
+
+    const el = stepsTop.current;
+    if (!el || typeof window === "undefined") return;
+
+    // the topbar is sticky, so stopping at the exact top would tuck it under
+    const TOPBAR = 60;
+    const top = el.getBoundingClientRect().top + window.scrollY - TOPBAR;
+    const reduced =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    window.scrollTo({ top: Math.max(0, top), behavior: reduced ? "auto" : "smooth" });
   };
 
   const next = () => {
@@ -157,7 +176,7 @@ export default function ContentUploadPage() {
     setVisited(STEPS.map((_, i) => i));
     if (blocking) {
       toast.error(`Fix the highlighted fields before ${IS_REVIEWER ? "publishing" : "submitting"}`);
-      setStep(STEPS.length - 1);
+      goTo(STEPS.length - 1);
       return;
     }
     if (pending) {
@@ -279,7 +298,7 @@ export default function ContentUploadPage() {
                   setDraft(emptyDraft());
                   setSavedId(null);
                   setVisited([]);
-                  setStep(0);
+                  goTo(0);
                   setFurthest(0);
                   setSubmitted(false);
                 }}
@@ -292,7 +311,7 @@ export default function ContentUploadPage() {
       ) : (
       <>
       {/* -------------------------------- steps ------------------------------- */}
-      <div className="relative z-10 animate-fade-up">
+      <div ref={stepsTop} className="relative z-10 scroll-mt-16 animate-fade-up">
         {step === 0 ? (
           <BasicInfoStep draft={draft} patch={patch} errors={visibleErrors(0)} taxonomies={taxonomies} />
         ) : null}

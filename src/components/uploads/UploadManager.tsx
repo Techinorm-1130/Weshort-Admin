@@ -32,12 +32,23 @@ export interface QueueItem {
   duplicateOf: string | null;
 }
 
+/** How a caller that owns a field (the wizard) follows its own upload. */
+export interface UploadHandlers {
+  /** The record exists; the bytes have not moved yet. */
+  onAsset?: (asset: UploadAsset) => void;
+  onProgress?: (progress: TransferProgress, asset: UploadAsset) => void;
+  /** Ready, failed or cancelled - whatever the server settled on. */
+  onSettled?: (asset: UploadAsset | null, error?: string) => void;
+}
+
 interface UploadManagerValue {
   items: QueueItem[];
   config: UploadConfig | null;
   /** Bumped whenever an asset reaches a final state, so lists can refresh. */
   version: number;
   enqueue: (files: File[]) => void;
+  /** Upload one file and follow it; returns the queue id, for cancelling. */
+  upload: (file: File, handlers?: UploadHandlers) => string;
   cancel: (localId: string) => void;
   retry: (localId: string) => void;
   remove: (localId: string) => void;
@@ -57,6 +68,7 @@ const UploadManagerContext = createContext<UploadManagerValue>({
   config: null,
   version: 0,
   enqueue: noop,
+  upload: () => "",
   cancel: noop,
   retry: noop,
   remove: noop,
@@ -90,6 +102,8 @@ export default function UploadManagerProvider({ children }: { children: React.Re
   /** Mirrors `items` so the pump can read the queue without stale closures. */
   const itemsRef = useRef<QueueItem[]>([]);
   const transfers = useRef(new Map<string, Transfer>());
+  /** Per-item callbacks for whoever started the upload. */
+  const handlers = useRef(new Map<string, UploadHandlers>());
   const configRef = useRef<UploadConfig | null>(null);
 
   useEffect(() => {
@@ -139,6 +153,7 @@ export default function UploadManagerProvider({ children }: { children: React.Re
 
   const start = useCallback(
     async (item: QueueItem) => {
+      let created: UploadAsset | null = null;
       try {
         // Registering the asset first means the file is only ever sent to a
         // record the backend has already accepted.
@@ -152,15 +167,19 @@ export default function UploadManagerProvider({ children }: { children: React.Re
             media,
           });
           assetId = asset.id;
+          created = asset;
           patch(item.localId, { assetId });
+          handlers.current.get(item.localId)?.onAsset?.(asset);
         }
 
-        const transfer = sendFile(assetId, item.file, (progress) =>
-          patch(item.localId, { progress }),
-        );
+        const transfer = sendFile(assetId, item.file, (progress) => {
+          patch(item.localId, { progress });
+          if (created) handlers.current.get(item.localId)?.onProgress?.(progress, created);
+        });
         transfers.current.set(item.localId, transfer);
 
         const uploaded = await transfer.promise;
+        handlers.current.get(item.localId)?.onAsset?.(uploaded);
         patch(item.localId, {
           status: uploaded.status,
           duplicateOf: uploaded.duplicateOf,
@@ -173,11 +192,13 @@ export default function UploadManagerProvider({ children }: { children: React.Re
         });
       } catch (error) {
         const aborted = error instanceof DOMException && error.name === "AbortError";
+        const message = error instanceof Error ? error.message : "Upload failed";
         patch(item.localId, {
           status: aborted ? "cancelled" : "failed",
           failedStage: aborted ? "" : "upload",
-          error: aborted ? "" : error instanceof Error ? error.message : "Upload failed",
+          error: aborted ? "" : message,
         });
+        handlers.current.get(item.localId)?.onSettled?.(null, aborted ? "" : message);
       } finally {
         transfers.current.delete(item.localId);
         setVersion((v) => v + 1);
@@ -210,6 +231,9 @@ export default function UploadManagerProvider({ children }: { children: React.Re
           prev.map((item) => {
             const asset = assets.find((a: UploadAsset) => a.id === item.assetId);
             if (!asset || asset.status === item.status) return item;
+            if (!IN_FLIGHT.includes(asset.status)) {
+              handlers.current.get(item.localId)?.onSettled?.(asset);
+            }
             return {
               ...item,
               status: asset.status,
@@ -237,11 +261,11 @@ export default function UploadManagerProvider({ children }: { children: React.Re
 
   /* ------------------------------- actions ------------------------------- */
 
-  const enqueue = useCallback(
-    (files: File[]) => {
-      if (!files.length) return;
-      const added: QueueItem[] = files.map((file, index) => ({
-        localId: `q_${Date.now().toString(36)}_${index}_${Math.random().toString(36).slice(2, 7)}`,
+  const upload = useCallback(
+    (file: File, itemHandlers?: UploadHandlers) => {
+      const localId = `q_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+      const item: QueueItem = {
+        localId,
         file,
         fileName: file.name,
         sizeBytes: file.size,
@@ -251,14 +275,28 @@ export default function UploadManagerProvider({ children }: { children: React.Re
         error: "",
         failedStage: "",
         duplicateOf: null,
-      }));
+      };
+      if (itemHandlers) handlers.current.set(localId, itemHandlers);
 
-      itemsRef.current = [...itemsRef.current, ...added];
-      setItems((prev) => [...prev, ...added]);
+      itemsRef.current = [...itemsRef.current, item];
+      setItems((prev) => [...prev, item]);
       setCollapsed(false);
       pump();
+      return localId;
     },
     [pump],
+  );
+
+  /**
+   * Several files at once, same path, no per-file callbacks. Nothing calls this
+   * today — uploads start from the content wizard — but it is what a bulk
+   * "drop ten files" entry point would use.
+   */
+  const enqueue = useCallback(
+    (files: File[]) => {
+      for (const file of files) upload(file);
+    },
+    [upload],
   );
 
   const cancel = useCallback(
@@ -317,6 +355,7 @@ export default function UploadManagerProvider({ children }: { children: React.Re
     (localId: string) => {
       transfers.current.get(localId)?.abort();
       transfers.current.delete(localId);
+      handlers.current.delete(localId);
       itemsRef.current = itemsRef.current.filter((i) => i.localId !== localId);
       setItems((prev) => prev.filter((i) => i.localId !== localId));
       pump();
@@ -338,6 +377,7 @@ export default function UploadManagerProvider({ children }: { children: React.Re
       config,
       version,
       enqueue,
+      upload,
       cancel,
       retry,
       remove,
@@ -349,7 +389,7 @@ export default function UploadManagerProvider({ children }: { children: React.Re
       setCollapsed,
     }),
     [
-      items, config, version, enqueue, cancel, retry, remove, clearFinished, pendingOpenId,
+      items, config, version, enqueue, upload, cancel, retry, remove, clearFinished, pendingOpenId,
       requestOpen, clearPendingOpen, collapsed,
     ],
   );

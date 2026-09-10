@@ -617,8 +617,11 @@ export interface UploadAsset {
   createdAt: string;
   uploadedAt: string;
   readyAt: string;
-  /** Titles using this asset — deletion is refused while this is non-empty. */
-  usedBy: { id: ID; title: string }[];
+  /**
+   * Where this asset is used, and as what ("Film", "Trailer", "S1E2").
+   * Deletion is refused while it is non-empty.
+   */
+  usedBy: { id: ID; title: string; role?: string }[];
 }
 
 /** Upload limits, owned by the backend so the UI hardcodes nothing. */

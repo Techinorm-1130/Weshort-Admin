@@ -104,6 +104,11 @@ function ensureStore(): Store {
       (existing as unknown as Record<string, unknown>)[key] = fresh[key];
     }
   }
+  // Rows a caller's blank id overwrote before POST /contents started ignoring
+  // one. They cannot be opened, approved or deleted, so they are swept here.
+  const orphans = existing.contents.filter((row) => !row.id).length;
+  if (orphans) existing.contents = existing.contents.filter((row) => row.id);
+
   // rows created before the approval fields existed still need them
   for (const row of existing.contents) {
     if (!row.approval) {
@@ -404,15 +409,29 @@ function buildDashboard(): Dashboard {
  * Titles pointing at a stored video asset. The uploads API asks before it
  * deletes one, so bytes something depends on cannot be pulled out from under it.
  */
-export function contentsUsingAsset(assetId: string): { id: string; title: string }[] {
-  return db.contents
-    .filter(
-      (c) =>
-        c.video?.id === assetId ||
-        c.trailer?.id === assetId ||
-        c.seasons.some((s) => s.episodes.some((e) => e.video?.id === assetId)),
-    )
-    .map((c) => ({ id: c.id, title: c.title }));
+export function contentsUsingAsset(assetId: string): { id: string; title: string; role: string }[] {
+  const out: { id: string; title: string; role: string }[] = [];
+
+  for (const c of db.contents) {
+    // The role matters on screen: one submission usually stores two files, and
+    // without it a film and its trailer look like the same video listed twice.
+    if (c.video?.id === assetId) out.push({ id: c.id, title: c.title, role: "Film" });
+    if (c.trailer?.id === assetId) out.push({ id: c.id, title: c.title, role: "Trailer" });
+
+    for (const season of c.seasons) {
+      for (const episode of season.episodes) {
+        if (episode.video?.id === assetId) {
+          out.push({
+            id: c.id,
+            title: c.title,
+            role: `S${season.number}E${episode.episodeNumber}`,
+          });
+        }
+      }
+    }
+  }
+
+  return out;
 }
 
 export function handleMock<T>(method: string, rawPath: string, body?: unknown): Promise<T> {
@@ -464,7 +483,9 @@ export function handleMock<T>(method: string, rawPath: string, body?: unknown): 
       if (method === "GET" && id) return as(findOr404(db.medias, id));
       if (method === "POST" && !id) {
         const kind = ((body as { kind?: Media["kind"] })?.kind ?? "video") as Media["kind"];
-        const created = { ...blankMedia(kind), ...(body as object) } as Media;
+        const blank = blankMedia(kind);
+        // the id is the server's to give — see the note on POST /contents
+        const created = { ...blank, ...(body as object), id: blank.id } as Media;
         db.medias.unshift(created);
         return as(created);
       }
@@ -610,9 +631,33 @@ export function handleMock<T>(method: string, rawPath: string, body?: unknown): 
 
     /* ------------------------------ contents ---------------------------- */
     case "contents": {
-      // Upload totals per team member, for the "by member" library view.
+      // Upload totals per uploader, for the "by member" library view.
       if (method === "GET" && id === "stats") {
-        const stats: UploaderStats[] = UPLOADERS.map((member) => {
+        /*
+         * Everyone who has actually uploaded — not just the seeded team.
+         *
+         * A title sent in from the public site belongs to someone who was never
+         * on that list, so counting only UPLOADERS left them out of every total.
+         * The "Pending" badge is a sum of these, which is why approving such a
+         * title changed nothing on screen: it had never been counted.
+         */
+        const roster = new Map<string, { id: string; name: string; initials: string; color: string; role: string }>();
+        for (const member of UPLOADERS) roster.set(member.id, member);
+        for (const row of db.contents) {
+          const owner = row.uploadedBy;
+          if (!owner?.id || roster.has(owner.id)) continue;
+          roster.set(owner.id, {
+            id: owner.id,
+            name: owner.name,
+            initials: owner.initials,
+            // Actor.color is optional; the avatar needs one either way
+            color: owner.color ?? "#64748b",
+            // how they described themselves when they submitted
+            role: row.submitter?.kind ?? "submitter",
+          });
+        }
+
+        const stats: UploaderStats[] = [...roster.values()].map((member) => {
           const mine = db.contents.filter((c) => c.uploadedBy.id === member.id);
           const episodes = mine.reduce(
             (sum, c) => sum + c.seasons.reduce((n, season) => n + season.episodes.length, 0),
@@ -642,9 +687,20 @@ export function handleMock<T>(method: string, rawPath: string, body?: unknown): 
       if (method === "GET" && id) return as(findOr404(db.contents, id));
       if (method === "POST" && !id) {
         const payload = body as Partial<ContentItem>;
+        const blank = blankContent((payload?.type ?? "movie") as ContentItem["type"]);
         const created: ContentItem = {
-          ...blankContent((payload?.type ?? "movie") as ContentItem["type"]),
+          ...blank,
           ...(payload as object),
+          /*
+           * The identity and the timestamps belong to the server, never to the
+           * caller. Both wizards post their whole draft — id and all — and a new
+           * draft carries id: "", which spread straight over the generated one
+           * and handed back a row with no id. Everything addressed afterwards
+           * then became /contents//submit.
+           */
+          id: blank.id,
+          createdAt: blank.createdAt,
+          updatedAt: blank.updatedAt,
         };
         db.contents.unshift(created);
         return as(created);

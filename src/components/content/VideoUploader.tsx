@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useDebounced, useQuery } from "@/lib/hooks";
 import { formatBytes, formatDuration } from "@/lib/format";
 import type { UploadAsset, VideoAsset } from "@/types";
-import { probeVideo, sendFile, uploadApi, type Transfer } from "@/lib/upload/client";
+import { uploadApi } from "@/lib/upload/client";
+import { useUploadManager } from "@/components/uploads/UploadManager";
 import {
   formatEta, formatSpeed, uploadStatusLabel, validateFiles,
 } from "@/lib/upload/uploadMeta";
@@ -15,7 +16,6 @@ import { Modal } from "@/components/ui/Overlays";
 import { FileDrop } from "@/components/ui/Uploader";
 import { Field } from "@/components/ui/Fields";
 import { useToast } from "@/components/ui/Toast";
-import type { UploadConfig } from "@/types";
 
 /**
  * The wizard's video field, on the real upload pipeline.
@@ -39,25 +39,12 @@ export default function VideoUploader({
 }) {
   const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
-  const transferRef = useRef<Transfer | null>(null);
-  const onChangeRef = useRef(onChange);
-  const [config, setConfig] = useState<UploadConfig | null>(null);
   const [picking, setPicking] = useState(false);
 
-  useEffect(() => {
-    onChangeRef.current = onChange;
-  });
-
-  useEffect(() => {
-    let alive = true;
-    uploadApi
-      .config()
-      .then((value) => alive && setConfig(value))
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, []);
+  // One queue for the whole dashboard: the field hands the file over and gets
+  // told what happens to it, so the floating manager shows it like any other.
+  const { config, upload, cancel } = useUploadManager();
+  const queueIdRef = useRef<string | null>(null);
 
   /** Everything the field knows about a video comes from one asset record. */
   const fromAsset = (asset: UploadAsset, previous?: VideoAsset | null): VideoAsset => ({
@@ -82,112 +69,49 @@ export default function VideoUploader({
     height: asset.media.height,
   });
 
-  /* ------------------------- waiting on the server ------------------------ */
-
-  const assetId = value?.id ?? "";
-  const watching = value?.state === "processing";
-
-  useEffect(() => {
-    if (!watching || !assetId) return;
-
-    let alive = true;
-    const tick = async () => {
-      try {
-        const asset = await uploadApi.get(assetId);
-        if (!alive || asset.status === "processing" || asset.status === "uploaded") return;
-        onChangeRef.current(fromAsset(asset));
-        if (asset.status === "failed") toast.error(asset.error || "Processing failed");
-      } catch {
-        /* the next poll will pick it up */
-      }
-    };
-
-    const timer = setInterval(tick, 1500);
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [watching, assetId]);
-
   /* -------------------------------- upload -------------------------------- */
 
-  const upload = async (file: File) => {
-    const check = validateFiles([file], config);
-    const rejected = check.rejected[0];
+  const startUpload = (file: File) => {
+    const rejected = validateFiles([file], config).rejected[0];
     if (rejected) {
       toast.error(`${rejected.name} — ${rejected.reason}`);
       return;
     }
 
-    let created: UploadAsset;
-    try {
-      const media = await probeVideo(file);
-      created = await uploadApi.create({
-        fileName: file.name,
-        sizeBytes: file.size,
-        contentType: file.type,
-        media,
-      });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not start the upload");
-      return;
-    }
-
-    onChange({
-      id: created.id,
-      name: file.name,
-      sizeBytes: file.size,
-      progress: 0,
-      state: "uploading",
-      qualities: [],
-      previewUrl: uploadApi.streamUrl(created.id),
-      durationSec: created.media.durationSec,
-      width: created.media.width,
-      height: created.media.height,
+    queueIdRef.current = upload(file, {
+      onAsset: (asset) => onChange(fromAsset(asset)),
+      onProgress: (progress, asset) =>
+        onChange({
+          ...fromAsset(asset),
+          state: "uploading",
+          progress: progress.percent,
+          loadedBytes: progress.loaded,
+          speedBps: progress.speedBps,
+          etaSec: progress.etaSec,
+        }),
+      onSettled: (asset, error) => {
+        if (asset) {
+          onChange(fromAsset(asset));
+          if (asset.status === "failed") toast.error(asset.error || "Processing failed");
+          return;
+        }
+        // Cancelled uploads clear the field; a real failure keeps it, to retry.
+        if (!error) {
+          onChange(null);
+          return;
+        }
+        onChange({
+          id: "",
+          name: file.name,
+          sizeBytes: file.size,
+          progress: 0,
+          state: "failed",
+          qualities: [],
+          error,
+          failedStage: "upload",
+        });
+      },
     });
-
-    const transfer = sendFile(created.id, file, (progress) => {
-      onChangeRef.current({
-        id: created.id,
-        name: file.name,
-        sizeBytes: file.size,
-        progress: progress.percent,
-        state: "uploading",
-        qualities: [],
-        previewUrl: uploadApi.streamUrl(created.id),
-        durationSec: created.media.durationSec,
-        width: created.media.width,
-        height: created.media.height,
-        speedBps: progress.speedBps,
-        etaSec: progress.etaSec,
-        loadedBytes: progress.loaded,
-      });
-    });
-    transferRef.current = transfer;
-
-    try {
-      const uploaded = await transfer.promise;
-      onChangeRef.current(fromAsset(uploaded));
-    } catch (error) {
-      const aborted = error instanceof DOMException && error.name === "AbortError";
-      if (aborted) {
-        onChangeRef.current(null);
-        return;
-      }
-      onChangeRef.current({
-        id: created.id,
-        name: file.name,
-        sizeBytes: file.size,
-        progress: 0,
-        state: "failed",
-        qualities: [],
-        error: error instanceof Error ? error.message : "Upload failed",
-        failedStage: "upload",
-      });
-    } finally {
-      transferRef.current = null;
-    }
   };
 
   const retry = async () => {
@@ -207,9 +131,11 @@ export default function VideoUploader({
   };
 
   const clear = () => {
-    transferRef.current?.abort();
-    transferRef.current = null;
-    if (value?.id && (value.state === "uploading" || value.state === "failed")) {
+    // Cancelling in the queue aborts the request and clears the stored bytes.
+    if (queueIdRef.current) {
+      cancel(queueIdRef.current);
+      queueIdRef.current = null;
+    } else if (value?.id && (value.state === "uploading" || value.state === "failed")) {
       void uploadApi.cancel(value.id).catch(() => undefined);
     }
     onChange(null);
@@ -237,7 +163,7 @@ export default function VideoUploader({
         onChange={(event) => {
           const file = event.target.files?.[0];
           event.target.value = "";
-          if (file) void upload(file);
+          if (file) startUpload(file);
         }}
       />
 
@@ -257,7 +183,7 @@ export default function VideoUploader({
             onFiles={() => undefined}
             onRawFiles={(files) => {
               const first = files[0];
-              if (first) void upload(first);
+              if (first) startUpload(first);
             }}
           />
           <button

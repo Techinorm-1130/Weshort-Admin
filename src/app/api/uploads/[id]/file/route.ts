@@ -8,7 +8,9 @@
 
 import { NextResponse } from "next/server";
 import type { ReadableStream as WebReadableStream } from "node:stream/web";
-import { fileSizeOf, getAsset, removeFiles, updateAsset, writeStream } from "@/server/uploads/store";
+import {
+  fileSizeOf, getAsset, removeAsset, removeFiles, updateAsset, writeStream,
+} from "@/server/uploads/store";
 import { findDuplicate, queueProcessing } from "@/server/uploads/processing";
 import { cors, corsPreflight } from "@/server/uploads/cors";
 
@@ -46,10 +48,18 @@ async function putHandler(request: Request, ctx: Ctx) {
       uploadedAt: new Date().toISOString(),
     });
 
-    // Same bytes as an earlier asset? Say so rather than silently overwriting.
+    /*
+     * Exactly the same bytes as a video already stored and ready? Hand that one
+     * back and drop this copy. Sending the same file twice is normal — a failed
+     * submission retried, a wizard restarted — and every retry used to leave
+     * another row behind in Video files, so one upload looked like four.
+     */
     if (uploaded) {
       const twin = await findDuplicate(uploaded);
-      if (twin) await updateAsset(id, { duplicateOf: twin.id });
+      if (twin) {
+        await removeAsset(id);
+        return NextResponse.json(twin);
+      }
     }
 
     // Processing runs on its own; the client polls for the result.

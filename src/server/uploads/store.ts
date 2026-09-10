@@ -206,6 +206,55 @@ export function readRange(file: string, start: number, end: number) {
   return createReadStream(file, { start, end });
 }
 
+/**
+ * Wraps a file read as a web stream the response can hand back.
+ *
+ * Not `Readable.toWeb`: a browser abandons range requests constantly while
+ * seeking, and that helper keeps pushing into the closed controller, which
+ * surfaces as an uncaught exception and can take the process down. Here a
+ * cancelled response destroys the file handle, and every controller call is
+ * guarded for the chunk already in flight when that happens.
+ */
+export function webStreamFrom(source: NodeJS.ReadableStream & { destroy: () => void }): ReadableStream {
+  let closed = false;
+
+  return new ReadableStream({
+    start(controller) {
+      source.on("data", (chunk: Buffer) => {
+        if (closed) return;
+        try {
+          controller.enqueue(new Uint8Array(chunk));
+        } catch {
+          closed = true;
+          source.destroy();
+        }
+      });
+      source.on("end", () => {
+        if (closed) return;
+        closed = true;
+        try {
+          controller.close();
+        } catch {
+          /* the client already went away */
+        }
+      });
+      source.on("error", (error: Error) => {
+        if (closed) return;
+        closed = true;
+        try {
+          controller.error(error);
+        } catch {
+          /* nothing left to tell */
+        }
+      });
+    },
+    cancel() {
+      closed = true;
+      source.destroy();
+    },
+  });
+}
+
 export async function sizeOfFile(file: string): Promise<number> {
   try {
     return (await stat(file)).size;
@@ -220,4 +269,55 @@ export const ACTIVE_STATUSES: UploadStatus[] = ["waiting", "uploading", "uploade
 
 export function makeAssetId(): string {
   return `vid_${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
+}
+
+/* --------------------------------- images -------------------------------- */
+
+/**
+ * Artwork — posters, thumbnails, banners.
+ *
+ * These used to be object URLs or base64 strings on the record, which is why a
+ * poster uploaded on the public site showed as a broken image here: a
+ * `blob:` URL only resolves inside the tab that made it. They are files now,
+ * stored beside the videos and served by /api/images.
+ *
+ * The extension is carried in the id, so serving one needs no index.
+ */
+const IMAGE_TYPES: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  avif: "image/avif",
+  gif: "image/gif",
+};
+
+/** Only ids this pattern produces can ever reach the filesystem. */
+const IMAGE_ID = /^img_[a-z0-9]+\.(jpg|jpeg|png|webp|avif|gif)$/;
+
+export const MAX_IMAGE_BYTES = Number(process.env.UPLOAD_MAX_IMAGE_BYTES ?? 12 * 1024 * 1024);
+
+export function imageExtensionFor(contentType: string, fileName = ""): string | null {
+  const fromName = extensionOf(fileName);
+  if (fromName && IMAGE_TYPES[fromName]) return fromName;
+  const match = Object.keys(IMAGE_TYPES).find((ext) => IMAGE_TYPES[ext] === contentType.toLowerCase());
+  return match ?? null;
+}
+
+export const imageTypeOf = (id: string) => IMAGE_TYPES[extensionOf(id)] ?? "application/octet-stream";
+
+export function makeImageId(extension: string): string {
+  return `img_${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}.${extension}`;
+}
+
+/** Null for anything that is not an id we issued — never touches the disk. */
+export function imagePathFor(id: string): string | null {
+  return IMAGE_ID.test(id) ? path.join(UPLOAD_DIR, id) : null;
+}
+
+export async function writeImage(id: string, bytes: Buffer): Promise<void> {
+  const file = imagePathFor(id);
+  if (!file) throw new Error("Bad image id");
+  await mkdir(UPLOAD_DIR, { recursive: true });
+  await writeFile(file, bytes);
 }

@@ -92,11 +92,17 @@ export function queueProcessing(id: string): void {
   });
 }
 
-/** The first ready asset holding the same bytes, if the file was sent before. */
+/**
+ * A finished asset already holding these exact bytes.
+ *
+ * Only a READY twin counts: the upload route collapses onto whatever this
+ * returns, and collapsing onto something still processing (or failed) would
+ * hand the caller an asset that may never become playable.
+ */
 export async function findDuplicate(asset: UploadAsset): Promise<UploadAsset | undefined> {
   if (!asset.checksum) return undefined;
   const all = await listAssets();
   return all.find(
-    (other) => other.id !== asset.id && other.checksum === asset.checksum && other.status !== "cancelled",
+    (other) => other.id !== asset.id && other.checksum === asset.checksum && other.status === "ready",
   );
 }

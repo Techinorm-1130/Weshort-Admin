@@ -299,7 +299,9 @@ export default function VideoDetailsDrawer({
           </DrawerRow>
           <DrawerRow label="Ready">{asset.readyAt ? formatDate(asset.readyAt, true) : "—"}</DrawerRow>
           <DrawerRow label="Used by">
-            {asset.usedBy.length ? asset.usedBy.map((c) => c.title).join(", ") : "Not used yet"}
+            {asset.usedBy.length
+              ? asset.usedBy.map((c) => (c.role ? `${c.title} (${c.role})` : c.title)).join(", ")
+              : "Not used yet"}
           </DrawerRow>
         </div>
       </DrawerSection>

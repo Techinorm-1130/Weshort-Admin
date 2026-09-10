@@ -103,7 +103,9 @@ export default function DataTable<T extends { id: string }>({
                 <th
                   key={col.key}
                   style={{ width: col.width }}
-                  className={`sticky top-12 z-10 bg-surface px-4 py-2.5 ${ALIGN[col.align ?? "left"]} text-[12px] font-semibold text-muted`}
+                  className={`whitespace-nowrap bg-surface px-4 py-3 align-middle ${
+                    ALIGN[col.align ?? "left"]
+                  } text-[12px] font-semibold text-muted`}
                 >
                   <span className="inline-flex items-center">
                     {col.sortKey && onSortChange ? (
@@ -127,7 +129,7 @@ export default function DataTable<T extends { id: string }>({
                   </span>
                 </th>
               ))}
-              {rowActions ? <th className="sticky top-12 z-10 w-14 bg-surface px-4 py-2.5" /> : null}
+              {rowActions ? <th className="w-16 bg-surface px-4 py-3" /> : null}
             </tr>
           </thead>
 
@@ -142,13 +144,15 @@ export default function DataTable<T extends { id: string }>({
                   {columns.map((col) => (
                     <td
                       key={col.key}
-                      className={`px-4 py-2.5 ${ALIGN[col.align ?? "left"]} text-[13px] text-muted-strong ${col.className ?? ""}`}
+                      className={`px-4 py-3 align-middle ${
+                        ALIGN[col.align ?? "left"]
+                      } text-[13px] text-muted-strong ${col.className ?? ""}`}
                     >
                       {col.cell(row)}
                     </td>
                   ))}
                   {rowActions ? (
-                    <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-4 py-3 text-right align-middle" onClick={(e) => e.stopPropagation()}>
                       {rowActions(row)}
                     </td>
                   ) : null}

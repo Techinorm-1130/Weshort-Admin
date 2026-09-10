@@ -2,6 +2,7 @@
 
 import { contentApi, taxonomyApi } from "@/lib/api/resources";
 import { useQuery } from "@/lib/hooks";
+import { displayableImage } from "@/lib/upload/client";
 import { formatBytes, formatDate, formatDuration, labelOf, labelsOf } from "@/lib/format";
 import { AGE_RATINGS, AUDIO_LANGUAGES, CONTENT_CATEGORIES } from "@/lib/api/seed-ott";
 import type { ContentItem } from "@/types";
@@ -150,9 +151,9 @@ export default function ContentDetailsDrawer({
           <DrawerSection title="Artwork">
             <div className="grid grid-cols-3 gap-3">
               {[
-                { label: "Poster", src: item.poster, ratio: "2 / 3" },
-                { label: "Thumbnail", src: item.thumbnail, ratio: "16 / 9" },
-                { label: "Banner", src: item.banner, ratio: "16 / 6" },
+                { label: "Poster", src: displayableImage(item.poster), ratio: "2 / 3" },
+                { label: "Thumbnail", src: displayableImage(item.thumbnail), ratio: "16 / 9" },
+                { label: "Banner", src: displayableImage(item.banner), ratio: "16 / 6" },
               ].map((art) => (
                 <div key={art.label}>
                   <div

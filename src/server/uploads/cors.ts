@@ -16,7 +16,8 @@
 export const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": process.env.DEMO_API_ORIGIN ?? "*",
   "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  // X-File-Name rides along on an artwork POST, so the preflight must allow it
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-File-Name",
   "Access-Control-Max-Age": "86400",
 };
 

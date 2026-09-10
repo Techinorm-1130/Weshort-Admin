@@ -6,8 +6,7 @@
  * ------------------------------------------------------------------------ */
 
 import { NextResponse } from "next/server";
-import { Readable } from "node:stream";
-import { filePathFor, getAsset, readRange, sizeOfFile } from "@/server/uploads/store";
+import { filePathFor, getAsset, readRange, sizeOfFile, webStreamFrom } from "@/server/uploads/store";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +34,7 @@ export async function GET(request: Request, ctx: Ctx) {
   const range = request.headers.get("range");
 
   if (!range) {
-    const whole = Readable.toWeb(readRange(file, 0, size - 1)) as unknown as ReadableStream;
+    const whole = webStreamFrom(readRange(file, 0, size - 1));
     return new NextResponse(whole, {
       headers: {
         "Content-Type": type,
@@ -53,7 +52,7 @@ export async function GET(request: Request, ctx: Ctx) {
     return new NextResponse(null, { status: 416, headers: { "Content-Range": `bytes */${size}` } });
   }
 
-  const part = Readable.toWeb(readRange(file, start, end)) as unknown as ReadableStream;
+  const part = webStreamFrom(readRange(file, start, end));
   return new NextResponse(part, {
     status: 206,
     headers: {

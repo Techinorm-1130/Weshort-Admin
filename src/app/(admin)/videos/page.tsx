@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { UploadAsset } from "@/types";
 import { useDebounced, useQuery } from "@/lib/hooks";
@@ -18,17 +19,16 @@ import { DateInput } from "@/components/ui/Fields";
 import Icon from "@/components/ui/Icon";
 import { useToast } from "@/components/ui/Toast";
 import { useUploadManager } from "@/components/uploads/UploadManager";
-import UploadDropzone from "@/components/uploads/UploadDropzone";
 import UploadQueue from "@/components/uploads/UploadQueue";
 import VideoDetailsDrawer from "@/components/uploads/VideoDetailsDrawer";
 
 const PER_PAGE = 10;
 
-export default function VideoUploadsPage() {
+export default function VideoFilesPage() {
+  const router = useRouter();
   const toast = useToast();
   const {
-    items, config, enqueue, cancel, retry, remove, clearFinished, version, pendingOpenId,
-    clearPendingOpen,
+    items, cancel, retry, remove, clearFinished, version, pendingOpenId, clearPendingOpen,
   } = useUploadManager();
 
   const [search, setSearch] = useState("");
@@ -122,17 +122,19 @@ export default function VideoUploadsPage() {
   const columns: Column<UploadAsset>[] = [
     {
       key: "thumbnail",
-      header: "",
-      width: "76px",
+      header: "Preview",
+      width: "92px",
       cell: (row) => (
-        <div className="h-10 w-16 overflow-hidden rounded-md bg-surface-2">
+        <div className="flex h-11 w-16 items-center justify-center overflow-hidden rounded-md border border-line bg-surface-2">
           {row.hasThumbnail ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={uploadApi.thumbnailUrl(row.id, row.readyAt)} alt="" className="h-full w-full object-cover" />
+            <img
+              src={uploadApi.thumbnailUrl(row.id, row.readyAt)}
+              alt=""
+              className="h-full w-full object-cover"
+            />
           ) : (
-            <div className="flex h-full items-center justify-center text-muted">
-              <Icon name="film" size={14} />
-            </div>
+            <Icon name="film" size={15} className="text-muted" />
           )}
         </div>
       ),
@@ -141,6 +143,7 @@ export default function VideoUploadsPage() {
       key: "internalName",
       header: "Video name",
       sortKey: "fileName",
+      width: "34%",
       cell: (row) => (
         <div className="min-w-0">
           <p className="truncate font-semibold text-ink">{row.internalName}</p>
@@ -151,14 +154,16 @@ export default function VideoUploadsPage() {
     {
       key: "displayName",
       header: "Display name",
+      width: "16%",
       cell: (row) => (
-        <span className="text-[13px] text-muted-strong">{row.displayName || "—"}</span>
+        <span className="block truncate text-[13px] text-muted-strong">{row.displayName || "—"}</span>
       ),
     },
     {
       key: "duration",
       header: "Duration",
       align: "center",
+      width: "104px",
       sortKey: "durationSec",
       cell: (row) => (
         <span className="whitespace-nowrap tabular-nums text-[13px]">
@@ -170,6 +175,7 @@ export default function VideoUploadsPage() {
       key: "size",
       header: "Size",
       align: "center",
+      width: "104px",
       sortKey: "sizeBytes",
       cell: (row) => <span className="whitespace-nowrap text-[13px]">{formatBytes(row.sizeBytes)}</span>,
     },
@@ -177,6 +183,7 @@ export default function VideoUploadsPage() {
       key: "resolution",
       header: "Resolution",
       align: "center",
+      width: "124px",
       cell: (row) => (
         <span className="whitespace-nowrap text-[13px]">
           {row.media.width && row.media.height ? `${row.media.width}×${row.media.height}` : "—"}
@@ -187,6 +194,7 @@ export default function VideoUploadsPage() {
       key: "status",
       header: "Status",
       align: "center",
+      width: "132px",
       cell: (row) => (
         <div>
           <Badge tone={UPLOAD_STATUS_TONES[row.status]}>{uploadStatusLabel(row.status)}</Badge>
@@ -208,6 +216,7 @@ export default function VideoUploadsPage() {
       key: "createdAt",
       header: "Uploaded",
       align: "right",
+      width: "116px",
       sortKey: "createdAt",
       cell: (row) => <span className="whitespace-nowrap text-[13px]">{formatDate(row.createdAt)}</span>,
     },
@@ -216,26 +225,18 @@ export default function VideoUploadsPage() {
   return (
     <>
       <PageHeader
-        title="Video uploads"
+        title="Video files"
         count={total}
-        icon="upload"
+        icon="film"
         iconColor="#0d9488"
-        crumbs={[{ label: "Catalogue" }, { label: "Video uploads" }]}
-        subtitle="Send video files to storage, watch them process, then fill in their details."
+        crumbs={[{ label: "Catalogue" }, { label: "Video files" }]}
+        subtitle="Every video sent to storage — status, details and playback. Videos are added in Upload content."
         actions={
-          <Button icon="plus" onClick={() => document.getElementById("video-dropzone")?.scrollIntoView({ behavior: "smooth" })}>
-            Upload videos
+          <Button icon="plus" onClick={() => router.push("/content/upload")}>
+            Upload content
           </Button>
         }
       />
-
-      <div id="video-dropzone">
-        <UploadDropzone
-          config={config}
-          known={rows.map((r) => ({ fileName: r.fileName, sizeBytes: r.sizeBytes }))}
-          onAccepted={enqueue}
-        />
-      </div>
 
       <UploadQueue
         items={items}
@@ -250,17 +251,19 @@ export default function VideoUploadsPage() {
 
       {/* ------------------------------ filters ------------------------------ */}
       <Card className="mb-3" padded>
-        <div className="flex flex-wrap items-end gap-3">
-          <SearchInput
-            value={search}
-            onChange={(value) => {
-              setSearch(value);
-              setPage(1);
-            }}
-            placeholder="Search video name…"
-            className="w-full sm:w-72"
-          />
-          <div className="w-40">
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+          <div className="w-full sm:w-72">
+            <p className="mb-1.5 text-[12px] font-medium text-muted-strong">Search</p>
+            <SearchInput
+              value={search}
+              onChange={(value) => {
+                setSearch(value);
+                setPage(1);
+              }}
+              placeholder="Video name…"
+            />
+          </div>
+          <div className="w-36">
             <DateInput
               label="Uploaded from"
               value={from}
@@ -270,7 +273,7 @@ export default function VideoUploadsPage() {
               }}
             />
           </div>
-          <div className="w-40">
+          <div className="w-36">
             <DateInput
               label="Uploaded to"
               value={to}
@@ -280,25 +283,45 @@ export default function VideoUploadsPage() {
               }}
             />
           </div>
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            {UPLOAD_STATUS_FILTERS.map((filter) => (
-              <button
-                key={filter.value}
-                type="button"
-                onClick={() => {
-                  setStatus(filter.value);
-                  setPage(1);
-                }}
-                className={`h-8 rounded-lg px-3 text-[12px] font-semibold transition ${
-                  status === filter.value
-                    ? "bg-accent text-white"
-                    : "bg-surface-2 text-muted-strong hover:bg-surface-3 hover:text-ink"
-                }`}
-              >
-                {filter.label}
-              </button>
-            ))}
-          </div>
+          {from || to || search || status !== "all" ? (
+            <Button
+              variant="ghost"
+              icon="close"
+              className="h-9"
+              onClick={() => {
+                setSearch("");
+                setFrom("");
+                setTo("");
+                setStatus("all");
+                setPage(1);
+              }}
+            >
+              Clear
+            </Button>
+          ) : null}
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+          {UPLOAD_STATUS_FILTERS.map((filter) => (
+            <button
+              key={filter.value}
+              type="button"
+              onClick={() => {
+                setStatus(filter.value);
+                setPage(1);
+              }}
+              className={`h-8 rounded-lg px-3 text-[12px] font-semibold transition ${
+                status === filter.value
+                  ? "bg-accent text-white"
+                  : "bg-surface-2 text-muted-strong hover:bg-surface-3 hover:text-ink"
+              }`}
+            >
+              {filter.label}
+            </button>
+          ))}
+          <span className="ml-auto text-[12px] text-muted">
+            {total} video{total === 1 ? "" : "s"}
+          </span>
         </div>
       </Card>
 
@@ -310,8 +333,13 @@ export default function VideoUploadsPage() {
         onSortChange={setSort}
         onRowClick={(row) => openAsset(row.id)}
         emptyTitle="No videos uploaded yet"
-        emptyDescription="Drop a video file above and it will appear here as it uploads and processes."
+        emptyDescription="Videos appear here as soon as you attach one in Upload content — with its progress, processing state and details."
         emptyIcon="film"
+        emptyAction={
+          <Button icon="plus" onClick={() => router.push("/content/upload")}>
+            Upload content
+          </Button>
+        }
         rowActions={(row) => (
           <Dropdown
             trigger={({ toggle }) => <IconButton icon="dots" label="Actions" size="sm" onClick={toggle} />}

@@ -97,6 +97,42 @@ export const uploadApi = {
     `${BASE}/${id}/thumbnail${stamp ? `?v=${encodeURIComponent(stamp)}` : ""}`,
 };
 
+/* --------------------------------- images -------------------------------- */
+
+/**
+ * Uploads artwork and returns the URL to keep on the record.
+ *
+ * Same endpoint the public site posts posters to, so a title looks the same
+ * whichever side it came from.
+ */
+export async function uploadImage(file: File): Promise<string> {
+  const res = await fetch("/api/images", {
+    method: "POST",
+    headers: {
+      "Content-Type": file.type || "application/octet-stream",
+      "X-File-Name": file.name,
+    },
+    body: file,
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { message?: string } | null;
+    throw new Error(body?.message ?? `Could not upload the image (${res.status})`);
+  }
+  return ((await res.json()) as { url: string }).url;
+}
+
+/**
+ * An artwork value that a browser can actually render.
+ *
+ * Records made before artwork was uploaded properly hold a `blob:` URL, which
+ * only ever resolved inside the tab that created it. Treat those as missing so
+ * the slot shows its placeholder instead of a broken image.
+ */
+export function displayableImage(value?: string | null): string | undefined {
+  if (!value) return undefined;
+  return value.startsWith("blob:") ? undefined : value;
+}
+
 /* ------------------------------ the transfer ---------------------------- */
 
 export interface TransferProgress {

@@ -137,7 +137,7 @@ export default function UploadDock() {
             <div className="flex items-center justify-between border-t border-line px-3.5 py-2">
               <span className="text-[11px] text-muted">Uploads continue while you work</span>
               <Button size="sm" variant="ghost" onClick={() => router.push("/videos")}>
-                Open uploads
+                Open video files
               </Button>
             </div>
           </>

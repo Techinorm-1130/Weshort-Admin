@@ -1,6 +1,7 @@
 "use client";
 
 import type { ContentItem, Taxonomies } from "@/types";
+import { displayableImage } from "@/lib/upload/client";
 import { formatBytes, formatDate, formatDuration, labelOf, labelsOf } from "@/lib/format";
 import type { ContentErrors } from "@/lib/content-validation";
 import { AGE_RATINGS, AUDIO_LANGUAGES, CONTENT_CATEGORIES } from "@/lib/api/seed-ott";
@@ -71,8 +72,8 @@ export default function ReviewStep({
           <CardTitle title="Artwork" />
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: "Poster", src: draft.poster, ratio: "2 / 3" },
-              { label: "Thumb", src: draft.thumbnail, ratio: "16 / 9" },
+              { label: "Poster", src: displayableImage(draft.poster), ratio: "2 / 3" },
+              { label: "Thumb", src: displayableImage(draft.thumbnail), ratio: "16 / 9" },
               { label: "Banner", src: draft.banner, ratio: "16 / 6" },
             ].map((art) => (
               <div key={art.label}>
