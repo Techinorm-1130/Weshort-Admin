@@ -609,6 +609,12 @@ export interface UploadAsset {
   /** Why it failed, in words the admin can act on. */
   error: string;
   media: UploadMedia;
+  /**
+   * Set when the bytes live in object storage rather than on this machine's
+   * disk — which is how a deployment has to work, since a serverless request
+   * body is capped far below the size of a film.
+   */
+  blobUrl: string;
   hasThumbnail: boolean;
   /** sha256 of the stored bytes, used to spot re-uploads of the same file. */
   checksum: string;
@@ -626,6 +632,12 @@ export interface UploadAsset {
 
 /** Upload limits, owned by the backend so the UI hardcodes nothing. */
 export interface UploadConfig {
+  /**
+   * How the bytes travel. "blob" sends them from the browser straight to object
+   * storage; "stream" sends them through this app, which only works where the
+   * host does not cap the request body.
+   */
+  transport: "blob" | "stream";
   maxSizeBytes: number;
   allowedExtensions: string[];
   allowedMimeTypes: string[];

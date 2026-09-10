@@ -25,6 +25,9 @@ export async function GET(request: Request, ctx: Ctx) {
   const asset = await getAsset(id);
   if (!asset) return new NextResponse(null, { status: 404 });
 
+  // Held in object storage: it is served from there, with its own range support.
+  if (asset.blobUrl) return NextResponse.redirect(asset.blobUrl);
+
   const file = filePathFor(asset);
   const size = await sizeOfFile(file);
   if (!size) return new NextResponse(null, { status: 404 });

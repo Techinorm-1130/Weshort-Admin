@@ -18,6 +18,7 @@ import { tmpdir } from "node:os";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { ReadableStream as WebReadableStream } from "node:stream/web";
+import { del } from "@vercel/blob";
 import type { UploadAsset, UploadConfig, UploadStatus } from "@/types";
 
 /* -------------------------------- config -------------------------------- */
@@ -45,9 +46,19 @@ export function uploadConfig(): UploadConfig {
    * function at all: the browser uploads straight to object storage instead.
    */
   const serverless = Boolean(process.env.VERCEL ?? process.env.AWS_LAMBDA_FUNCTION_NAME);
-  const ceiling = serverless ? 4 * 1024 * 1024 : 10 * 1024 * 1024 * 1024;
+
+  /*
+   * With a blob store connected the browser uploads straight to it and this app
+   * never touches the bytes, so the cap above does not apply and a real film
+   * goes through. Without one there is nowhere else to send them, and on a
+   * serverless host that means the 4 MB ceiling stands.
+   */
+  const transport = process.env.BLOB_READ_WRITE_TOKEN ? "blob" : "stream";
+  const ceiling =
+    transport === "blob" || !serverless ? 10 * 1024 * 1024 * 1024 : 4 * 1024 * 1024;
 
   return {
+    transport,
     maxSizeBytes: Number(process.env.UPLOAD_MAX_BYTES ?? ceiling),
     allowedExtensions: list(process.env.UPLOAD_ALLOWED_EXTENSIONS, DEFAULT_EXTENSIONS),
     allowedMimeTypes: list(process.env.UPLOAD_ALLOWED_MIME, DEFAULT_MIME),
@@ -213,6 +224,12 @@ export async function writeStream(
 
 /** Drops every file belonging to an asset, finished or partial. */
 export async function removeFiles(asset: UploadAsset): Promise<void> {
+  if (asset.blobUrl) {
+    // A failure here must not stop the record being removed — an orphaned blob
+    // is untidy, a row pointing at bytes that are gone is broken.
+    await del(asset.blobUrl).catch(() => undefined);
+  }
+
   await Promise.all([
     rm(filePathFor(asset), { force: true }),
     rm(partPathFor(asset), { force: true }),
@@ -221,6 +238,9 @@ export async function removeFiles(asset: UploadAsset): Promise<void> {
 }
 
 export async function fileSizeOf(asset: UploadAsset): Promise<number> {
+  // Held in object storage: there is no local file to measure, and the size is
+  // whatever the completed upload reported.
+  if (asset.blobUrl) return asset.receivedBytes;
   try {
     return (await stat(/* turbopackIgnore: true */ filePathFor(asset))).size;
   } catch {
@@ -331,7 +351,15 @@ const IMAGE_TYPES: Record<string, string> = {
 /** Only ids this pattern produces can ever reach the filesystem. */
 const IMAGE_ID = /^img_[a-z0-9]+\.(jpg|jpeg|png|webp|avif|gif)$/;
 
-export const MAX_IMAGE_BYTES = Number(process.env.UPLOAD_MAX_IMAGE_BYTES ?? 12 * 1024 * 1024);
+/*
+ * Artwork still comes through this app, so it lives under the same request-body
+ * ceiling a serverless host imposes. Promising 12 MB there would fail the same
+ * confusing way a large film did.
+ */
+export const MAX_IMAGE_BYTES = Number(
+  process.env.UPLOAD_MAX_IMAGE_BYTES ??
+    (process.env.VERCEL ?? process.env.AWS_LAMBDA_FUNCTION_NAME ? 4 * 1024 * 1024 : 12 * 1024 * 1024),
+);
 
 export function imageExtensionFor(contentType: string, fileName = ""): string | null {
   const fromName = extensionOf(fileName);

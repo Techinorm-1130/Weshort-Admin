@@ -133,6 +133,7 @@ async function postHandler(request: Request) {
       audioCodec: body.media?.audioCodec ?? "",
       frameRate: Number(body.media?.frameRate ?? 0),
     },
+    blobUrl: "",
     hasThumbnail: false,
     checksum: "",
     duplicateOf: null,
