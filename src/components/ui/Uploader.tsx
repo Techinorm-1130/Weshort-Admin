@@ -16,10 +16,13 @@ export interface DroppedFile {
 }
 
 export function FileDrop({
-  onFiles, accept = "video/*,audio/*,.vtt,.srt", hint = "Supports MOV, MP4, MKV, WAV, VTT up to 10 GB",
+  onFiles, onRawFiles, accept = "video/*,audio/*,.vtt,.srt",
+  hint = "Supports MOV, MP4, MKV, WAV, VTT up to 10 GB",
   title = "Drop your video, audio or subtitle file here", multiple = true, compact = false,
 }: {
   onFiles: (files: DroppedFile[]) => void;
+  /** The untouched File objects, for callers that upload the bytes themselves. */
+  onRawFiles?: (files: File[]) => void;
   accept?: string;
   hint?: string;
   title?: string;
@@ -31,6 +34,7 @@ export function FileDrop({
 
   const handle = (list: FileList | null) => {
     if (!list?.length) return;
+    onRawFiles?.(Array.from(list));
     onFiles(
       Array.from(list).map((f) => ({
         id: `${f.name}-${f.size}-${f.lastModified}`,

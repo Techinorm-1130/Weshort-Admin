@@ -57,7 +57,9 @@ export default function ReviewStep({
             <div>
               <p className="font-display text-base font-bold text-ink">Ready to publish</p>
               <p className="text-[13px] text-muted">
-                {pending ? `${pending} upload(s) still processing — publishing waits for them.` : "All required fields are filled."}
+                {pending
+                  ? `${pending} upload(s) still processing — publishing waits for them.`
+                  : "All required fields are filled. Publishing puts it live on WeShort."}
               </p>
             </div>
           </div>
@@ -125,8 +127,10 @@ export default function ReviewStep({
               {draft.video ? `${draft.video.name} · ${formatBytes(draft.video.sizeBytes)}` : "—"}
             </DrawerRow>
             <DrawerRow label="Video status">{draft.video?.state ?? "—"}</DrawerRow>
-            <DrawerRow label="Qualities">
-              {draft.video?.qualities.filter((q) => q.state === "ready").map((q) => q.level).join(", ") || "—"}
+            <DrawerRow label="Resolution">
+              {draft.video?.width && draft.video?.height
+                ? `${draft.video.width} × ${draft.video.height}`
+                : "Not detected"}
             </DrawerRow>
             <DrawerRow label="Trailer">{draft.trailer ? draft.trailer.name : "—"}</DrawerRow>
           </div>

@@ -21,6 +21,7 @@ import type {
   Paginated,
   Person,
   Project,
+  Actor,
   Taxonomies,
   UploaderStats,
   Viewer,
@@ -103,6 +104,18 @@ function ensureStore(): Store {
       (existing as unknown as Record<string, unknown>)[key] = fresh[key];
     }
   }
+  // rows created before the approval fields existed still need them
+  for (const row of existing.contents) {
+    if (!row.approval) {
+      row.approval = {
+        state: row.status === "published" ? "approved" : "draft",
+        submittedAt: "",
+        reviewedAt: "",
+        reviewedBy: null,
+        note: "",
+      };
+    }
+  }
   return existing;
 }
 
@@ -153,6 +166,14 @@ function paginate<T extends Row>(rows: T[], params: URLSearchParams): Paginated<
     items = items.filter((r) => {
       const f = fields(r);
       return f.kind === type || f.sourceType === type || f.role === type || f.state === type;
+    });
+  }
+
+  const approval = params.get("approval");
+  if (approval && approval !== "all") {
+    items = items.filter((r) => {
+      const state = fields(r).approval as { state?: string } | undefined;
+      return state?.state === approval;
     });
   }
 
@@ -311,6 +332,7 @@ function blankContent(type: ContentItem["type"]): ContentItem {
     id: makeId("cnt"),
     type,
     uploadedBy: { id: me.id, name: me.name, initials: me.initials, color: me.color },
+    approval: { state: "draft", submittedAt: "", reviewedAt: "", reviewedBy: null, note: "" },
     title: "",
     shortDescription: "",
     description: "",
@@ -377,6 +399,21 @@ function buildDashboard(): Dashboard {
 }
 
 /* --------------------------------- router ------------------------------- */
+
+/**
+ * Titles pointing at a stored video asset. The uploads API asks before it
+ * deletes one, so bytes something depends on cannot be pulled out from under it.
+ */
+export function contentsUsingAsset(assetId: string): { id: string; title: string }[] {
+  return db.contents
+    .filter(
+      (c) =>
+        c.video?.id === assetId ||
+        c.trailer?.id === assetId ||
+        c.seasons.some((s) => s.episodes.some((e) => e.video?.id === assetId)),
+    )
+    .map((c) => ({ id: c.id, title: c.title }));
+}
 
 export function handleMock<T>(method: string, rawPath: string, body?: unknown): Promise<T> {
   const [path, query = ""] = rawPath.split("?");
@@ -588,6 +625,9 @@ export function handleMock<T>(method: string, rawPath: string, body?: unknown): 
             published: mine.filter((c) => c.status === "published").length,
             draft: mine.filter((c) => c.status === "draft").length,
             scheduled: mine.filter((c) => c.status === "scheduled").length,
+            pending: mine.filter((c) => c.approval.state === "pending").length,
+            approved: mine.filter((c) => c.approval.state === "approved").length,
+            rejected: mine.filter((c) => c.approval.state === "rejected").length,
             movies: mine.filter((c) => c.type === "movie").length,
             series: mine.filter((c) => c.type === "series").length,
             episodes,
@@ -609,9 +649,60 @@ export function handleMock<T>(method: string, rawPath: string, body?: unknown): 
         db.contents.unshift(created);
         return as(created);
       }
+      // the upload wizard hands the title to review rather than publishing it
+      if (method === "POST" && sub === "submit") {
+        const row = findOr404(db.contents, id);
+        row.approval = {
+          state: "pending",
+          submittedAt: nowIso(),
+          reviewedAt: "",
+          reviewedBy: null,
+          note: "",
+        };
+        row.status = "draft";
+        row.updatedAt = nowIso();
+        return as(row);
+      }
+
+      if (method === "POST" && (sub === "approve" || sub === "reject")) {
+        const row = findOr404(db.contents, id);
+        const payload = body as { note?: string; reviewer?: Actor } | undefined;
+        const reviewer: Actor = payload?.reviewer ?? {
+          id: UPLOADERS[0].id,
+          name: UPLOADERS[0].name,
+          initials: UPLOADERS[0].initials,
+          color: UPLOADERS[0].color,
+        };
+        row.approval = {
+          ...row.approval,
+          state: sub === "approve" ? "approved" : "rejected",
+          reviewedAt: nowIso(),
+          reviewedBy: reviewer,
+          note: payload?.note ?? "",
+        };
+        // approving releases it; a future publish date schedules it instead
+        row.status =
+          sub === "approve"
+            ? row.publishAt && row.publishAt > nowIso().slice(0, 10)
+              ? "scheduled"
+              : "published"
+            : "draft";
+        row.updatedAt = nowIso();
+        return as(row);
+      }
+
+      // an admin publishing their own upload is its own approval
       if (method === "POST" && sub === "publish") {
         const row = findOr404(db.contents, id);
         row.status = row.publishAt && row.publishAt > nowIso().slice(0, 10) ? "scheduled" : "published";
+        if (row.approval.state !== "approved") {
+          row.approval = {
+            ...row.approval,
+            state: "approved",
+            reviewedAt: nowIso(),
+            reviewedBy: row.uploadedBy,
+          };
+        }
         row.updatedAt = nowIso();
         return as(row);
       }

@@ -1,7 +1,8 @@
 /* Deterministic seed data for the OTT modules (viewers + content). */
 
 import type {
-  ContentItem, LandingPage, LandingSection, SubscriptionPlan, Viewer, ViewerStatus,
+  ApprovalState, ContentItem, LandingPage, LandingSection, SubscriptionPlan,
+  Viewer, ViewerStatus,
 } from "@/types";
 import { rng } from "./seed";
 
@@ -107,6 +108,13 @@ export const UPLOADERS = [
   { id: "usr_gp", name: "Giulio Pace", initials: "GP", color: "#b45309", role: "contributor" },
 ];
 
+/** Who uploaded what: owner, editor, admin, contributor, round and round. */
+const UPLOAD_ROTATION = [0, 2, 1, 3, 0, 2, 3, 1];
+
+/** Titles sitting in the review queue, and ones an admin sent back. */
+const PENDING_AT = new Set([1, 6, 9, 14]);
+const REJECTED_AT = new Set([3, 11]);
+
 const CONTENT_TITLES = [
   "Super Funny Button", "Babau", "Eidos", "Danzamorfosi", "Il silenzio del sudore",
   "Cojocabron", "Blue Hour", "The Last Reel", "Kintsugi", "Notturno",
@@ -122,7 +130,20 @@ export function buildContents(): ContentItem[] {
     const type: ContentItem["type"] = i % 5 === 2 ? "series" : "movie";
     const status = statuses[i % statuses.length];
     // uploads spread unevenly across the team, the way they are in practice
-    const uploader = UPLOADERS[i % 3 === 0 ? 0 : i % 4];
+    const uploader = UPLOADERS[UPLOAD_ROTATION[i % UPLOAD_ROTATION.length]];
+    // owners and admins publish for themselves; the rest go through review
+    const needsReview = uploader.role !== "owner" && uploader.role !== "admin";
+    const approvalState: ApprovalState = !needsReview
+      ? status === "draft"
+        ? "draft"
+        : "approved"
+      : PENDING_AT.has(i)
+        ? "pending"
+        : REJECTED_AT.has(i)
+          ? "rejected"
+          : status === "draft"
+            ? "draft"
+            : "approved";
     const month = String(1 + (i % 8)).padStart(2, "0");
     const day = String(1 + ((i * 3) % 27)).padStart(2, "0");
 
@@ -134,6 +155,19 @@ export function buildContents(): ContentItem[] {
         name: uploader.name,
         initials: uploader.initials,
         color: uploader.color,
+      },
+      approval: {
+        state: approvalState,
+        submittedAt: approvalState === "draft" ? "" : `2026-${month}-${day}T12:00:00.000Z`,
+        reviewedAt:
+          approvalState === "approved" || approvalState === "rejected"
+            ? `2026-${month}-${String(Math.min(28, Number(day) + 2)).padStart(2, "0")}T09:30:00.000Z`
+            : "",
+        reviewedBy:
+          approvalState === "approved" || approvalState === "rejected"
+            ? { id: "usr_ws", name: "Sarin Kumar", initials: "SK", color: "#0d9488" }
+            : null,
+        note: approvalState === "rejected" ? "Master file is 720p — please resupply in 1080p or better." : "",
       },
       title,
       shortDescription: `${title} — a WeShort original.`,
@@ -153,7 +187,7 @@ export function buildContents(): ContentItem[] {
       audioLanguages: i % 2 === 0 ? ["en", "it"] : ["ta", "en"],
       subtitles: [],
       access: i % 3 === 0 ? "free" : "premium",
-      status,
+      status: approvalState === "pending" || approvalState === "rejected" ? "draft" : status,
       publishAt: `2026-${month}-15`,
       expiryAt: "",
       featured: i === 0,

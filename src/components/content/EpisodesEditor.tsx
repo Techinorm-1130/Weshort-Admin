@@ -249,10 +249,20 @@ export default function EpisodesEditor({
                 </ul>
 
                 {season.episodes.length === 0 ? (
-                  <p className="mt-4 rounded-lg bg-surface-2 px-4 py-3 text-[13px] text-muted">
-                    No episode in this season yet.
+                  <p className="mt-4 text-center text-[13px] text-muted">
+                    No episode in this season yet — add the first one below.
                   </p>
                 ) : null}
+
+                {/* the + pressed once per episode, sitting under the list */}
+                <button
+                  type="button"
+                  onClick={() => addEpisode(season)}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border px-4 py-3 text-[13px] font-semibold text-muted-strong transition hover:border-accent hover:bg-accent-soft hover:text-accent"
+                >
+                  <Icon name="plus" size={15} />
+                  Add episode {season.episodes.length + 1}
+                </button>
               </div>
             ) : null}
           </Card>

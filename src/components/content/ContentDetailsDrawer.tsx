@@ -9,17 +9,21 @@ import Drawer, { DrawerRow, DrawerSection } from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import { Avatar, Badge, Skeleton } from "@/components/ui/Primitives";
-import { ACCESS_TONES, STATUS_TONES, accessLabel, statusLabel, typeLabel } from "./contentMeta";
+import {
+  ACCESS_TONES, APPROVAL_TONES, STATUS_TONES, accessLabel, approvalLabel, statusLabel, typeLabel,
+} from "./contentMeta";
 
 /** Everything recorded about one uploaded title. */
 export default function ContentDetailsDrawer({
-  contentId, open, onClose, onEdit, onDelete,
+  contentId, open, onClose, onEdit, onDelete, onApprove, onReject,
 }: {
   contentId: string | null;
   open: boolean;
   onClose: () => void;
   onEdit: (item: ContentItem) => void;
   onDelete: (item: ContentItem) => void;
+  onApprove?: (item: ContentItem) => void;
+  onReject?: (item: ContentItem) => void;
 }) {
   const { data: item, loading, error } = useQuery(
     () => (contentId ? contentApi.get(contentId) : Promise.resolve(null)),
@@ -41,6 +45,7 @@ export default function ContentDetailsDrawer({
           <>
             <Badge tone={STATUS_TONES[item.status]}>{statusLabel(item.status)}</Badge>
             <Badge tone={ACCESS_TONES[item.access]}>{accessLabel(item.access)}</Badge>
+            <Badge tone={APPROVAL_TONES[item.approval.state]}>{approvalLabel(item.approval.state)}</Badge>
             {item.featured ? <Badge tone="accent">Featured</Badge> : null}
           </>
         ) : null
@@ -51,9 +56,20 @@ export default function ContentDetailsDrawer({
             <Button variant="danger" icon="trash" onClick={() => onDelete(item)}>
               Delete
             </Button>
-            <Button icon="pencil" onClick={() => onEdit(item)}>
-              Edit content
-            </Button>
+            {item.approval.state === "pending" && onReject ? (
+              <Button variant="secondary" icon="close" onClick={() => onReject(item)}>
+                Reject
+              </Button>
+            ) : null}
+            {item.approval.state === "pending" && onApprove ? (
+              <Button icon="check" onClick={() => onApprove(item)}>
+                Approve
+              </Button>
+            ) : (
+              <Button icon="pencil" onClick={() => onEdit(item)}>
+                Edit content
+              </Button>
+            )}
           </>
         ) : null
       }
@@ -82,6 +98,31 @@ export default function ContentDetailsDrawer({
             </div>
             <span className="text-[11px] text-muted">Updated {formatDate(item.updatedAt)}</span>
           </div>
+
+          {/* ---------------------------- review -------------------------- */}
+          <DrawerSection title="Review">
+            <div className="rounded-lg border border-border px-3">
+              <DrawerRow label="State">{approvalLabel(item.approval.state)}</DrawerRow>
+              <DrawerRow label="Submitted">
+                {item.approval.submittedAt ? formatDate(item.approval.submittedAt, true) : "—"}
+              </DrawerRow>
+              <DrawerRow label="Reviewed">
+                {item.approval.reviewedAt ? formatDate(item.approval.reviewedAt, true) : "—"}
+              </DrawerRow>
+              <DrawerRow label="Reviewed by">{item.approval.reviewedBy?.name ?? "—"}</DrawerRow>
+            </div>
+            {item.approval.note ? (
+              <p
+                className={`mt-3 rounded-lg p-3 text-[13px] ${
+                  item.approval.state === "rejected"
+                    ? "bg-danger/8 text-danger"
+                    : "bg-surface-2 text-muted-strong"
+                }`}
+              >
+                {item.approval.note}
+              </p>
+            ) : null}
+          </DrawerSection>
 
           {/* --------------------------- artwork -------------------------- */}
           <DrawerSection title="Artwork">
@@ -144,9 +185,10 @@ export default function ContentDetailsDrawer({
                 {item.video ? `${item.video.name} · ${formatBytes(item.video.sizeBytes)}` : "—"}
               </DrawerRow>
               <DrawerRow label="Video status">{item.video?.state ?? "—"}</DrawerRow>
-              <DrawerRow label="Qualities">
-                {item.video?.qualities.filter((q) => q.state === "ready").map((q) => q.level).join(", ") ||
-                  "—"}
+              <DrawerRow label="Resolution">
+                {item.video?.width && item.video?.height
+                  ? `${item.video.width} × ${item.video.height}`
+                  : "Not detected"}
               </DrawerRow>
               <DrawerRow label="Trailer">{item.trailer?.name ?? "—"}</DrawerRow>
               <DrawerRow label="Audio">{labelsOf(AUDIO_LANGUAGES, item.audioLanguages) || "—"}</DrawerRow>

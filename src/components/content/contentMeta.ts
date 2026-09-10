@@ -1,4 +1,4 @@
-import type { ContentAccess, ContentStatus, ContentType } from "@/types";
+import type { ApprovalState, ContentAccess, ContentStatus, ContentType } from "@/types";
 import type { IconName } from "@/components/ui/Icon";
 
 /* Labels and tones shared by the library table, drawer and exports. */
@@ -55,3 +55,28 @@ export const TYPE_FILTERS = [
   { value: "series", label: "Series" },
   { value: "episode", label: "Episode" },
 ];
+
+/* ------------------------------- approval -------------------------------- */
+
+export const APPROVAL_TONES: Record<ApprovalState, "neutral" | "warn" | "ok" | "danger"> = {
+  draft: "neutral",
+  pending: "warn",
+  approved: "ok",
+  rejected: "danger",
+};
+
+const APPROVAL_LABELS: Record<ApprovalState, string> = {
+  draft: "Not submitted",
+  pending: "Waiting for approval",
+  approved: "Approved",
+  rejected: "Rejected",
+};
+
+export const approvalLabel = (state: ApprovalState) => APPROVAL_LABELS[state];
+
+export const APPROVAL_ICONS: Record<ApprovalState, IconName> = {
+  draft: "file",
+  pending: "clock",
+  approved: "check",
+  rejected: "close",
+};

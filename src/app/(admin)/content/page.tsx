@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { contentApi, taxonomyApi, type ContentQuery } from "@/lib/api/resources";
 import { useList, useMutation, useQuery } from "@/lib/hooks";
+import { CURRENT_USER, IS_REVIEWER } from "@/lib/session";
 import { formatDate, formatDuration, formatMinutes, labelsOf } from "@/lib/format";
 import { downloadCsv, type SheetColumn } from "@/lib/export";
 import { AGE_RATINGS, AUDIO_LANGUAGES } from "@/lib/api/seed-ott";
@@ -13,18 +14,29 @@ import Button, { Chip, IconButton } from "@/components/ui/Button";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import { Pagination, SearchInput } from "@/components/ui/Toolbar";
 import { Avatar, Badge, Card, ErrorBox, Skeleton } from "@/components/ui/Primitives";
-import { ConfirmDialog, Dropdown } from "@/components/ui/Overlays";
+import { ConfirmDialog, Dropdown, Modal } from "@/components/ui/Overlays";
+import { TextArea } from "@/components/ui/Fields";
 import Icon from "@/components/ui/Icon";
 import { useToast } from "@/components/ui/Toast";
 import ContentDetailsDrawer from "@/components/content/ContentDetailsDrawer";
 import {
-  ACCESS_TONES, STATUS_FILTERS, STATUS_TONES, TYPE_ICONS, accessLabel, statusLabel, typeLabel,
+  ACCESS_TONES, APPROVAL_TONES, STATUS_FILTERS, STATUS_TONES, TYPE_ICONS, accessLabel,
+  approvalLabel, statusLabel, typeLabel,
 } from "@/components/content/contentMeta";
 
-/** The signed-in member. The backend will supply this once it is connected. */
-const ME = { id: "usr_ws", name: "Sarin Kumar" };
+/** The signed-in member; every screen reads it from lib/session. */
+const ME = CURRENT_USER;
 
-type View = "all" | "mine" | "member";
+type View = "all" | "pending" | "approved" | "mine" | "member";
+
+/** What the toolbar count refers to in each view. */
+const VIEW_CAPTION: Record<View, string> = {
+  all: "All team uploads",
+  pending: "Waiting for approval",
+  approved: "Approved uploads",
+  mine: `Uploaded by ${ME.name}`,
+  member: "All team uploads",
+};
 
 export default function ContentLibraryPage() {
   const router = useRouter();
@@ -46,12 +58,21 @@ export default function ContentLibraryPage() {
   const query = list.query as ContentQuery;
   const setQuery = (patch: Partial<ContentQuery>) => list.setQuery(patch as never);
   const remove = useMutation((id: string) => contentApi.remove(id));
+  const approve = useMutation((id: string) => contentApi.approve(id));
+  const reject = useMutation((id: string, note: string) => contentApi.reject(id, note));
+
+  const [toApprove, setToApprove] = useState<ContentItem | null>(null);
+  const [toReject, setToReject] = useState<ContentItem | null>(null);
+  const [rejectNote, setRejectNote] = useState("");
 
   /** Switching view is just a filter change — the table stays the same. */
   const goTo = (next: View) => {
     setView(next);
-    if (next === "mine") setQuery({ uploadedBy: ME.id, page: 1 });
-    if (next === "all") setQuery({ uploadedBy: "all", page: 1 });
+    const base = { page: 1, uploadedBy: "all", approval: "all" } as Partial<ContentQuery>;
+    if (next === "all") setQuery(base);
+    if (next === "mine") setQuery({ ...base, uploadedBy: ME.id });
+    if (next === "pending") setQuery({ ...base, approval: "pending" });
+    if (next === "approved") setQuery({ ...base, approval: "approved" });
   };
 
   const refreshAll = () => {
@@ -67,6 +88,11 @@ export default function ContentLibraryPage() {
     { header: "Status", value: (r) => statusLabel(r.status) },
     { header: "Access", value: (r) => accessLabel(r.access) },
     { header: "Uploaded by", value: (r) => r.uploadedBy.name },
+    { header: "Review state", value: (r) => approvalLabel(r.approval.state) },
+    { header: "Submitted on", value: (r) => (r.approval.submittedAt ? formatDate(r.approval.submittedAt, true) : "") },
+    { header: "Reviewed on", value: (r) => (r.approval.reviewedAt ? formatDate(r.approval.reviewedAt, true) : "") },
+    { header: "Reviewed by", value: (r) => r.approval.reviewedBy?.name ?? "" },
+    { header: "Review note", value: (r) => r.approval.note },
     { header: "Uploaded on", value: (r) => formatDate(r.createdAt, true) },
     { header: "Last updated", value: (r) => formatDate(r.updatedAt) },
     { header: "Release date", value: (r) => (r.releaseDate ? formatDate(r.releaseDate) : "") },
@@ -93,6 +119,9 @@ export default function ContentLibraryPage() {
     { header: "Published", value: (r) => r.published },
     { header: "Draft", value: (r) => r.draft },
     { header: "Scheduled", value: (r) => r.scheduled },
+    { header: "Pending approval", value: (r) => r.pending },
+    { header: "Approved", value: (r) => r.approved },
+    { header: "Rejected", value: (r) => r.rejected },
     { header: "Movies", value: (r) => r.movies },
     { header: "Series", value: (r) => r.series },
     { header: "Episodes", value: (r) => r.episodes },
@@ -161,6 +190,24 @@ export default function ContentLibraryPage() {
       },
     },
     {
+      key: "approval",
+      header: "Review",
+      align: "center",
+      cell: (row) => (
+        <Badge tone={APPROVAL_TONES[row.approval.state]}>{approvalLabel(row.approval.state)}</Badge>
+      ),
+      filter: {
+        value: query.approval ?? "all",
+        options: [
+          { value: "pending", label: "Waiting for approval" },
+          { value: "approved", label: "Approved" },
+          { value: "rejected", label: "Rejected" },
+          { value: "draft", label: "Not submitted" },
+        ],
+        onChange: (v) => setQuery({ approval: v }),
+      },
+    },
+    {
       key: "status",
       header: "Status",
       align: "center",
@@ -196,7 +243,28 @@ export default function ContentLibraryPage() {
     },
   ];
 
-  const totalEpisodes = (members ?? []).reduce((n, m) => n + m.episodes, 0);
+  const pendingCount = (members ?? []).reduce((n, m) => n + m.pending, 0);
+
+  const onApprove = async (item: ContentItem) => {
+    const done = await approve.run(item.id);
+    if (done) {
+      toast.success(`"${item.title}" approved and ${done.status === "scheduled" ? "scheduled" : "published"}`);
+      setToApprove(null);
+      refreshAll();
+    }
+  };
+
+  const onReject = async () => {
+    if (!toReject || !rejectNote.trim()) return;
+    const done = await reject.run(toReject.id, rejectNote.trim());
+    if (done) {
+      toast.success(`"${toReject.title}" was rejected`);
+      setToReject(null);
+      setRejectNote("");
+      refreshAll();
+    }
+  };
+
   const totalRuntime = (members ?? []).reduce((n, m) => n + m.totalDurationSec, 0);
 
   return (
@@ -210,6 +278,24 @@ export default function ContentLibraryPage() {
         activeTab={view}
         tabs={[
           { id: "all", label: "All uploads", icon: "layers", color: "#0369a1", onSelect: () => goTo("all") },
+          ...(IS_REVIEWER
+            ? [
+                {
+                  id: "pending",
+                  label: pendingCount ? `Pending (${pendingCount})` : "Pending",
+                  icon: "clock" as const,
+                  color: "#b45309",
+                  onSelect: () => goTo("pending"),
+                },
+                {
+                  id: "approved",
+                  label: "Approved",
+                  icon: "check" as const,
+                  color: "#047857",
+                  onSelect: () => goTo("approved"),
+                },
+              ]
+            : []),
           { id: "mine", label: "My uploads", icon: "user", color: "#0d9488", onSelect: () => goTo("mine") },
           { id: "member", label: "By member", icon: "users", color: "#7c3aed", onSelect: () => goTo("member") },
         ]}
@@ -251,8 +337,8 @@ export default function ContentLibraryPage() {
             {[
               { label: "Team members", value: String(members?.length ?? 0), icon: "users", color: "#7c3aed" },
               { label: "Total uploads", value: String(list.total), icon: "film", color: "#0369a1" },
-              { label: "Episodes", value: String(totalEpisodes), icon: "layers", color: "#0d9488" },
-              { label: "Total runtime", value: formatMinutes(Math.round(totalRuntime / 60)), icon: "clock", color: "#b45309" },
+              { label: "Waiting for approval", value: String(pendingCount), icon: "clock", color: "#b45309" },
+              { label: "Total runtime", value: formatMinutes(Math.round(totalRuntime / 60)), icon: "play", color: "#0d9488" },
             ].map((stat) => (
               <Card key={stat.label} className="flex items-center gap-3">
                 <span
@@ -296,6 +382,16 @@ export default function ContentLibraryPage() {
         </>
       ) : (
         <>
+          {view === "pending" ? (
+            <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-warn/30 bg-warn/8 px-4 py-2.5 text-[13px] text-warn">
+              <Icon name="clock" size={15} />
+              <span>
+                {list.total} upload{list.total === 1 ? "" : "s"} from the team waiting for your review.
+                Approving publishes the title; rejecting sends it back with your note.
+              </span>
+            </div>
+          ) : null}
+
           {/* ------------------------------ toolbar ---------------------------- */}
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <SearchInput
@@ -304,18 +400,20 @@ export default function ContentLibraryPage() {
               placeholder="Search titles"
               className="w-full sm:w-72"
             />
-            {STATUS_FILTERS.map((filter) => (
-              <Chip
-                key={filter.value}
-                active={(query.status ?? "all") === filter.value}
-                onClick={() => setQuery({ status: filter.value as never })}
-              >
-                {filter.label}
-              </Chip>
-            ))}
+            {/* pending titles are all drafts, so the status chips only muddle that view */}
+            {view === "pending"
+              ? null
+              : STATUS_FILTERS.map((filter) => (
+                  <Chip
+                    key={filter.value}
+                    active={(query.status ?? "all") === filter.value}
+                    onClick={() => setQuery({ status: filter.value as never })}
+                  >
+                    {filter.label}
+                  </Chip>
+                ))}
             <span className="ml-auto text-[12px] text-muted">
-              {view === "mine" ? `Uploaded by ${ME.name}` : "All team uploads"} · {list.total} title
-              {list.total === 1 ? "" : "s"}
+              {VIEW_CAPTION[view]} · {list.total} title{list.total === 1 ? "" : "s"}
             </span>
           </div>
 
@@ -339,6 +437,12 @@ export default function ContentLibraryPage() {
                 trigger={({ toggle }) => <IconButton icon="dots" label="Actions" size="sm" onClick={toggle} />}
                 items={[
                   { label: "View details", icon: "eye", onSelect: () => setOpenId(row.id) },
+                  ...(IS_REVIEWER && row.approval.state === "pending"
+                    ? [
+                        { label: "Approve", icon: "check" as const, onSelect: () => setToApprove(row) },
+                        { label: "Reject", icon: "close" as const, onSelect: () => setToReject(row) },
+                      ]
+                    : []),
                   { label: "Edit", icon: "pencil", onSelect: () => router.push("/content/upload") },
                   { label: "Delete", icon: "trash", tone: "danger", onSelect: () => setToDelete(row) },
                 ]}
@@ -369,7 +473,72 @@ export default function ContentLibraryPage() {
           setOpenId(null);
           setToDelete(item);
         }}
+        onApprove={
+          IS_REVIEWER
+            ? (item) => {
+                setOpenId(null);
+                setToApprove(item);
+              }
+            : undefined
+        }
+        onReject={
+          IS_REVIEWER
+            ? (item) => {
+                setOpenId(null);
+                setToReject(item);
+              }
+            : undefined
+        }
       />
+
+      <ConfirmDialog
+        open={!!toApprove}
+        onClose={() => setToApprove(null)}
+        pending={approve.pending}
+        title="Approve this upload"
+        confirmLabel="Approve"
+        message={`"${toApprove?.title}" goes live once approved${
+          toApprove?.publishAt ? ` (publish date ${formatDate(toApprove.publishAt)})` : ""
+        }.`}
+        onConfirm={() => toApprove && onApprove(toApprove)}
+      />
+
+      <Modal
+        open={!!toReject}
+        onClose={() => {
+          setToReject(null);
+          setRejectNote("");
+        }}
+        title="Reject this upload"
+        description="The note is kept on the record so the team knows why."
+        width="max-w-md"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setToReject(null);
+                setRejectNote("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" loading={reject.pending} disabled={!rejectNote.trim()} onClick={onReject}>
+              Reject upload
+            </Button>
+          </>
+        }
+      >
+        <TextArea
+          label="Reason"
+          required
+          rows={4}
+          placeholder="Master file is 720p — please resupply in 1080p or better."
+          value={rejectNote}
+          onChange={(e) => setRejectNote(e.target.value)}
+          error={rejectNote.trim() ? undefined : "A reason is required"}
+        />
+      </Modal>
 
       <ConfirmDialog
         open={!!toDelete}
@@ -432,9 +601,9 @@ function MemberRow({
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
           {[
             { label: "uploads", value: row.total },
-            { label: "published", value: row.published },
+            { label: "approved", value: row.approved },
+            { label: "pending", value: row.pending },
             { label: "drafts", value: row.draft },
-            { label: "episodes", value: row.episodes },
           ].map((stat) => (
             <span key={stat.label} className="flex items-baseline gap-1.5">
               <span className="font-display text-[15px] font-bold tabular-nums text-ink">{stat.value}</span>

@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { contentApi, taxonomyApi } from "@/lib/api/resources";
+import { CURRENT_USER, IS_REVIEWER } from "@/lib/session";
+import { formatDate } from "@/lib/format";
 import { useMutation, useQuery } from "@/lib/hooks";
 import type { ContentItem } from "@/types";
 import {
@@ -13,6 +15,8 @@ import Button from "@/components/ui/Button";
 import Stepper, { type Step } from "@/components/ui/Stepper";
 import Icon from "@/components/ui/Icon";
 import { Badge, Card } from "@/components/ui/Primitives";
+import { DrawerRow } from "@/components/ui/Drawer";
+import { APPROVAL_TONES, approvalLabel } from "@/components/content/contentMeta";
 import { ConfirmDialog, Modal } from "@/components/ui/Overlays";
 import { useToast } from "@/components/ui/Toast";
 import BasicInfoStep from "@/components/content/steps/BasicInfoStep";
@@ -34,7 +38,13 @@ function emptyDraft(): ContentItem {
     id: "",
     type: "movie",
     // the signed-in member; the backend will stamp this server-side
-    uploadedBy: { id: "usr_ws", name: "Sarin Kumar", initials: "SK", color: "#0d9488" },
+    uploadedBy: {
+      id: CURRENT_USER.id,
+      name: CURRENT_USER.name,
+      initials: CURRENT_USER.initials,
+      color: CURRENT_USER.color,
+    },
+    approval: { state: "draft", submittedAt: "", reviewedAt: "", reviewedBy: null, note: "" },
     title: "",
     shortDescription: "",
     description: "",
@@ -77,13 +87,28 @@ export default function ContentUploadPage() {
   const [savedId, setSavedId] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   const save = useMutation((payload: Partial<ContentItem>, id: string | null) =>
     id ? contentApi.update(id, payload) : contentApi.create(payload),
   );
   const publish = useMutation((id: string) => contentApi.publish(id));
+  const submit = useMutation((id: string) => contentApi.submit(id));
 
-  const patch = (values: Partial<ContentItem>) => setDraft((prev) => ({ ...prev, ...values }));
+  /**
+   * Choosing "series" opens season 1 straight away, so adding episodes is just
+   * pressing + on the season — no separate step to create the season first.
+   */
+  const patch = (values: Partial<ContentItem>) => {
+    const seasonId = `sea_${Date.now().toString(36)}`;
+    setDraft((prev) => {
+      const next = { ...prev, ...values };
+      if (next.type === "series" && next.seasons.length === 0) {
+        return { ...next, seasons: [{ id: seasonId, number: 1, title: "Season 1", episodes: [] }] };
+      }
+      return next;
+    });
+  };
 
   const errors: ContentErrors = useMemo(() => validateContent(draft), [draft]);
   const pending = pendingUploads(draft);
@@ -124,10 +149,14 @@ export default function ContentUploadPage() {
     if (saved) toast.success("Saved as draft");
   };
 
-  const onPublish = async () => {
+  /**
+   * Owners and admins publish straight from the wizard. Everyone else hands the
+   * title to review, and sees the waiting screen instead of the catalogue.
+   */
+  const onFinish = async () => {
     setVisited(STEPS.map((_, i) => i));
     if (blocking) {
-      toast.error("Fix the highlighted fields before publishing");
+      toast.error(`Fix the highlighted fields before ${IS_REVIEWER ? "publishing" : "submitting"}`);
       setStep(STEPS.length - 1);
       return;
     }
@@ -137,13 +166,26 @@ export default function ContentUploadPage() {
     }
     const saved = await persist("draft");
     if (!saved) return;
-    const published = await publish.run(saved.id);
-    if (published) {
-      setDraft((prev) => ({ ...prev, status: published.status }));
-      toast.success(published.status === "scheduled" ? "Content scheduled" : "Content published");
-      router.push("/content");
+
+    if (IS_REVIEWER) {
+      const published = await publish.run(saved.id);
+      if (published) {
+        setDraft((prev) => ({ ...prev, status: published.status, approval: published.approval }));
+        toast.success(published.status === "scheduled" ? "Content scheduled" : "Content published");
+        router.push("/content");
+      }
+      return;
+    }
+
+    const sent = await submit.run(saved.id);
+    if (sent) {
+      setDraft((prev) => ({ ...prev, approval: sent.approval, status: sent.status }));
+      setSubmitted(true);
+      toast.success("Sent for admin approval");
     }
   };
+
+  const finishing = IS_REVIEWER ? publish.pending : submit.pending;
 
   return (
     <>
@@ -171,8 +213,8 @@ export default function ContentUploadPage() {
             <Button variant="secondary" icon="file" loading={save.pending} onClick={onSaveDraft}>
               Save as draft
             </Button>
-            <Button icon="check" loading={publish.pending} onClick={onPublish}>
-              Publish
+            <Button icon="check" loading={finishing} onClick={onFinish}>
+              {IS_REVIEWER ? "Publish" : "Submit for approval"}
             </Button>
           </>
         }
@@ -185,7 +227,11 @@ export default function ContentUploadPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3 border-t border-line px-4 py-2 text-[12px] text-muted">
-          <Badge tone={draft.status === "published" ? "ok" : "neutral"}>{draft.status}</Badge>
+          {IS_REVIEWER ? (
+            <Badge tone={draft.status === "published" ? "ok" : "neutral"}>{draft.status}</Badge>
+          ) : (
+            <Badge tone={APPROVAL_TONES[draft.approval.state]}>{approvalLabel(draft.approval.state)}</Badge>
+          )}
           {savedId ? <span>Draft saved</span> : <span>Not saved yet</span>}
           {pending ? (
             <span className="inline-flex items-center gap-1.5 text-accent">
@@ -194,7 +240,8 @@ export default function ContentUploadPage() {
           ) : null}
           {blocking ? (
             <span className="ml-auto inline-flex items-center gap-1.5 text-warn">
-              <Icon name="shield" size={13} /> {blocking} field(s) left before publishing
+              <Icon name="shield" size={13} /> {blocking} field(s) left before{" "}
+              {IS_REVIEWER ? "publishing" : "submitting"}
             </span>
           ) : (
             <span className="ml-auto inline-flex items-center gap-1.5 text-ok">
@@ -204,6 +251,46 @@ export default function ContentUploadPage() {
         </div>
       </Card>
 
+      {submitted ? (
+        <Card className="animate-fade-up">
+          <div className="flex flex-col items-center py-8 text-center">
+            <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-warn/12 text-warn">
+              <Icon name="clock" size={26} />
+            </span>
+            <h2 className="font-display text-[19px] font-bold text-ink">Waiting for admin approval</h2>
+            <p className="mt-2 max-w-md text-[13px] text-muted">
+              <strong className="text-ink">{draft.title}</strong> was sent for review. It stays out of the
+              catalogue until an admin approves it — you can follow its status in the library.
+            </p>
+
+            <div className="mt-5 w-full max-w-md rounded-lg border border-border px-3">
+              <DrawerRow label="Submitted">{formatDate(draft.approval.submittedAt, true)}</DrawerRow>
+              <DrawerRow label="Uploaded by">{draft.uploadedBy.name}</DrawerRow>
+              <DrawerRow label="Review state">{approvalLabel(draft.approval.state)}</DrawerRow>
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+              <Button variant="secondary" icon="layers" onClick={() => router.push("/content")}>
+                Open the library
+              </Button>
+              <Button
+                icon="plus"
+                onClick={() => {
+                  setDraft(emptyDraft());
+                  setSavedId(null);
+                  setVisited([]);
+                  setStep(0);
+                  setFurthest(0);
+                  setSubmitted(false);
+                }}
+              >
+                Upload another
+              </Button>
+            </div>
+          </div>
+        </Card>
+      ) : (
+      <>
       {/* -------------------------------- steps ------------------------------- */}
       <div className="relative z-10 animate-fade-up">
         {step === 0 ? (
@@ -243,8 +330,8 @@ export default function ContentUploadPage() {
             Save as draft
           </Button>
           {isLast ? (
-            <Button icon="check" loading={publish.pending} onClick={onPublish}>
-              Publish content
+            <Button icon="check" loading={finishing} onClick={onFinish}>
+              {IS_REVIEWER ? "Publish content" : "Submit for approval"}
             </Button>
           ) : (
             <Button iconRight="chevron-right" onClick={next}>
@@ -253,6 +340,8 @@ export default function ContentUploadPage() {
           )}
         </div>
       </div>
+      </>
+      )}
 
       {/* ------------------------------- preview ------------------------------ */}
       <Modal

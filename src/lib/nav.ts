@@ -29,7 +29,8 @@ export const NAV: NavSection[] = [
     label: "Catalogue",
     items: [
       { label: "Content library", href: "/content", icon: "film", color: "#0369a1" },
-      { label: "Upload content", href: "/content/upload", icon: "upload", color: "#0d9488" },
+      { label: "Video uploads", href: "/videos", icon: "upload", color: "#0d9488" },
+      { label: "Upload content", href: "/content/upload", icon: "layers", color: "#7c3aed" },
     ],
   },
   {

@@ -390,9 +390,19 @@ export interface VideoAsset {
   progress: number;
   state: UploadState;
   qualities: QualityRendition[];
-  /** Local object URL for preview; the backend returns the real one. */
+  /** Streams from the uploads API once the asset exists. */
   previewUrl?: string | null;
   error?: string;
+  /** Which step failed, so the field offers the matching retry. */
+  failedStage?: "upload" | "processing" | "";
+  /* Detected from the file by the upload pipeline — display only. */
+  durationSec?: number;
+  width?: number;
+  height?: number;
+  /* Live transfer figures, measured from the request in flight. */
+  loadedBytes?: number;
+  speedBps?: number;
+  etaSec?: number | null;
 }
 
 export interface SubtitleTrack {
@@ -422,6 +432,18 @@ export interface SeasonItem {
   episodes: EpisodeItem[];
 }
 
+/** Nothing reaches the catalogue until an admin has reviewed it. */
+export type ApprovalState = "draft" | "pending" | "approved" | "rejected";
+
+export interface Approval {
+  state: ApprovalState;
+  submittedAt: string;
+  reviewedAt: string;
+  reviewedBy: Actor | null;
+  /** Admin note; the reason recorded on a rejection. */
+  note: string;
+}
+
 /** Upload totals for one team member. */
 export interface UploaderStats {
   member: Actor;
@@ -430,6 +452,9 @@ export interface UploaderStats {
   published: number;
   draft: number;
   scheduled: number;
+  pending: number;
+  approved: number;
+  rejected: number;
   movies: number;
   series: number;
   episodes: number;
@@ -442,6 +467,8 @@ export interface ContentItem {
   type: ContentType;
   /** Team member who uploaded the title — drives the per-member library. */
   uploadedBy: Actor;
+  /** The producer, director or house the title came from. */
+  approval: Approval;
   title: string;
   shortDescription: string;
   description: string;
@@ -515,4 +542,73 @@ export interface LandingPage {
   publishedAt: string;
   /** Snapshot served to the public site — only replaced on publish. */
   published: { sections: LandingSection[]; seo: LandingPage["seo"]; version: number } | null;
+}
+
+/* ---------------------------- video uploads ----------------------------- */
+
+/**
+ * The real lifecycle of a video asset. The server owns this value; the UI only
+ * ever mirrors it, so nothing here is ever guessed on the client.
+ */
+export type UploadStatus =
+  | "waiting"
+  | "uploading"
+  | "uploaded"
+  | "processing"
+  | "ready"
+  | "failed"
+  | "cancelled";
+
+/** Which step failed, so the UI offers the matching retry. */
+export type UploadStage = "upload" | "processing" | "";
+
+/** Read off the file itself. Never editable by hand. */
+export interface UploadMedia {
+  durationSec: number;
+  width: number;
+  height: number;
+  /** "16:9" — derived from the real pixel dimensions. */
+  aspectRatio: string;
+  container: string;
+  /** Empty when the pipeline could not determine it — shown as "Not detected". */
+  videoCodec: string;
+  audioCodec: string;
+  frameRate: number;
+}
+
+export interface UploadAsset {
+  id: ID;
+  /** The name of the file as uploaded. */
+  fileName: string;
+  internalName: string;
+  displayName: string;
+  description: string;
+  contentType: string;
+  /** What the browser announced. */
+  sizeBytes: number;
+  /** What actually landed in storage. */
+  receivedBytes: number;
+  status: UploadStatus;
+  failedStage: UploadStage;
+  /** Why it failed, in words the admin can act on. */
+  error: string;
+  media: UploadMedia;
+  hasThumbnail: boolean;
+  /** sha256 of the stored bytes, used to spot re-uploads of the same file. */
+  checksum: string;
+  duplicateOf: ID | null;
+  uploadedBy: Actor;
+  createdAt: string;
+  uploadedAt: string;
+  readyAt: string;
+  /** Titles using this asset — deletion is refused while this is non-empty. */
+  usedBy: { id: ID; title: string }[];
+}
+
+/** Upload limits, owned by the backend so the UI hardcodes nothing. */
+export interface UploadConfig {
+  maxSizeBytes: number;
+  allowedExtensions: string[];
+  allowedMimeTypes: string[];
+  maxParallelUploads: number;
 }

@@ -48,14 +48,21 @@ export default function MediaStep({
         <Card>
           <CardTitle
             title="Video files"
-            subtitle="The main video is transcoded into the quality ladder automatically"
+            subtitle="Uploaded to storage, then processed before it can be published"
           />
           <div className="space-y-4">
             <VideoUploader
               label="Main video"
               required
               value={draft.video}
-              onChange={(asset) => patch({ video: asset })}
+              onChange={(asset) =>
+                patch(
+                  // the runtime read off the file fills the duration field once
+                  asset?.durationSec && !draft.durationSec
+                    ? { video: asset, durationSec: asset.durationSec }
+                    : { video: asset },
+                )
+              }
             />
             {errors.video ? <p className="-mt-2 text-xs text-danger">{errors.video}</p> : null}
 

@@ -144,9 +144,10 @@ export const viewerApi = {
 
 /* -------------------------------- contents ------------------------------ */
 
-/** Library filters: the standard list query plus the uploader. */
+/** Library filters: the standard list query plus uploader and review state. */
 export interface ContentQuery extends ListQuery {
   uploadedBy?: string;
+  approval?: string;
 }
 
 export const contentApi = {
@@ -157,6 +158,10 @@ export const contentApi = {
   create: (payload: Partial<ContentItem>) => http.post<ContentItem>("/contents", payload),
   update: (id: string, payload: Partial<ContentItem>) => http.patch<ContentItem>(`/contents/${id}`, payload),
   publish: (id: string) => http.post<ContentItem>(`/contents/${id}/publish`),
+  /** Hands a finished upload to an admin for review. */
+  submit: (id: string) => http.post<ContentItem>(`/contents/${id}/submit`),
+  approve: (id: string, note = "") => http.post<ContentItem>(`/contents/${id}/approve`, { note }),
+  reject: (id: string, note: string) => http.post<ContentItem>(`/contents/${id}/reject`, { note }),
   remove: (id: string) => http.del<void>(`/contents/${id}`),
 };
 

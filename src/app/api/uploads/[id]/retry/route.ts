@@ -1,0 +1,33 @@
+import { NextResponse } from "next/server";
+import { fileSizeOf, getAsset, updateAsset } from "@/server/uploads/store";
+import { queueProcessing } from "@/server/uploads/processing";
+import { cors, corsPreflight } from "@/server/uploads/cors";
+
+/**
+ * Retries the processing pass for a file that is already in storage. A failed
+ * *upload* is retried by sending the bytes again, not through here.
+ */
+export const dynamic = "force-dynamic";
+
+type Ctx = { params: Promise<{ id: string }> };
+
+async function postHandler(_request: Request, ctx: Ctx) {
+  const { id } = await ctx.params;
+  const asset = await getAsset(id);
+  if (!asset) return NextResponse.json({ message: "Video not found" }, { status: 404 });
+
+  if ((await fileSizeOf(asset)) === 0) {
+    return NextResponse.json(
+      { message: "There is no stored file to process. Upload the video again." },
+      { status: 409 },
+    );
+  }
+
+  await updateAsset(id, { status: "uploaded", failedStage: "", error: "" });
+  queueProcessing(id);
+  return NextResponse.json(await getAsset(id));
+}
+
+/* The public site calls these from another origin. */
+export const POST = cors(postHandler);
+export const OPTIONS = corsPreflight;
