@@ -35,8 +35,20 @@ export function uploadConfig(): UploadConfig {
           .filter(Boolean)
       : fallback;
 
+  /*
+   * A serverless request body is capped by the platform at about 4.5 MB, and
+   * the rejection happens before any of this code runs — so it arrives at the
+   * browser as a bare 413 with no CORS header, which reads as a CORS failure
+   * and tells nobody the truth. Advertising 10 GB there would be a promise the
+   * host will not keep, so the real ceiling is reported and the file is refused
+   * up front with a reason. Lifting it means not sending bytes through a
+   * function at all: the browser uploads straight to object storage instead.
+   */
+  const serverless = Boolean(process.env.VERCEL ?? process.env.AWS_LAMBDA_FUNCTION_NAME);
+  const ceiling = serverless ? 4 * 1024 * 1024 : 10 * 1024 * 1024 * 1024;
+
   return {
-    maxSizeBytes: Number(process.env.UPLOAD_MAX_BYTES ?? 10 * 1024 * 1024 * 1024),
+    maxSizeBytes: Number(process.env.UPLOAD_MAX_BYTES ?? ceiling),
     allowedExtensions: list(process.env.UPLOAD_ALLOWED_EXTENSIONS, DEFAULT_EXTENSIONS),
     allowedMimeTypes: list(process.env.UPLOAD_ALLOWED_MIME, DEFAULT_MIME),
     maxParallelUploads: Number(process.env.UPLOAD_MAX_PARALLEL ?? 3),
