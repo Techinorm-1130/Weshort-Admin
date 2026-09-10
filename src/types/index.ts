@@ -432,6 +432,17 @@ export interface SeasonItem {
   episodes: EpisodeItem[];
 }
 
+/** Who supplied the title, when it arrived from the public site. */
+export type SubmitterKind = "producer" | "director" | "production-house";
+
+export interface Submitter {
+  kind: SubmitterKind;
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+}
+
 /** Nothing reaches the catalogue until an admin has reviewed it. */
 export type ApprovalState = "draft" | "pending" | "approved" | "rejected";
 
@@ -467,7 +478,12 @@ export interface ContentItem {
   type: ContentType;
   /** Team member who uploaded the title — drives the per-member library. */
   uploadedBy: Actor;
-  /** The producer, director or house the title came from. */
+  /**
+   * Set when the title came in through the public site, so a reviewer can see
+   * the producer, director or house behind it. Absent on titles an admin
+   * uploaded here.
+   */
+  submitter?: Submitter;
   approval: Approval;
   title: string;
   shortDescription: string;

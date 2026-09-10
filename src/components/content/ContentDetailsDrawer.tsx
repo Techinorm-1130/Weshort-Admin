@@ -13,6 +13,12 @@ import {
   ACCESS_TONES, APPROVAL_TONES, STATUS_TONES, accessLabel, approvalLabel, statusLabel, typeLabel,
 } from "./contentMeta";
 
+const SUBMITTER_KIND: Record<NonNullable<ContentItem["submitter"]>["kind"], string> = {
+  producer: "Producer",
+  director: "Director",
+  "production-house": "Production house",
+};
+
 /** Everything recorded about one uploaded title. */
 export default function ContentDetailsDrawer({
   contentId, open, onClose, onEdit, onDelete, onApprove, onReject,
@@ -98,6 +104,22 @@ export default function ContentDetailsDrawer({
             </div>
             <span className="text-[11px] text-muted">Updated {formatDate(item.updatedAt)}</span>
           </div>
+
+          {/* --------------------------- submitter ------------------------ */}
+          {item.submitter ? (
+            <DrawerSection title="Submitted by">
+              <div className="rounded-lg border border-border px-3">
+                <DrawerRow label="Name">{item.submitter.name || "—"}</DrawerRow>
+                <DrawerRow label="Submitting as">{SUBMITTER_KIND[item.submitter.kind]}</DrawerRow>
+                <DrawerRow label="Company">{item.submitter.company || "—"}</DrawerRow>
+                <DrawerRow label="Email">{item.submitter.email || "—"}</DrawerRow>
+                <DrawerRow label="Phone">{item.submitter.phone || "—"}</DrawerRow>
+              </div>
+              <p className="mt-2 text-[11px] text-muted">
+                Came in through the public site. Reply to this address when you approve or reject it.
+              </p>
+            </DrawerSection>
+          ) : null}
 
           {/* ---------------------------- review -------------------------- */}
           <DrawerSection title="Review">
