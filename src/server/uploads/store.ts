@@ -14,6 +14,7 @@ import { createHash } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { tmpdir } from "node:os";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { ReadableStream as WebReadableStream } from "node:stream/web";
@@ -42,8 +43,30 @@ export function uploadConfig(): UploadConfig {
   };
 }
 
-export const UPLOAD_DIR = process.env.UPLOAD_DIR ?? path.join(process.cwd(), ".uploads");
-const INDEX_FILE = path.join(UPLOAD_DIR, "index.json");
+/**
+ * Where the bytes live.
+ *
+ * A serverless host gives you a read-only project directory and one writable
+ * scratch dir, so a deployment cannot use `.uploads` beside the source — every
+ * write would throw. It falls back to the OS temp dir there, which is
+ * per-instance and wiped between invocations: enough to walk the flow through,
+ * not a place anything survives. Point UPLOAD_DIR at a mounted volume, or swap
+ * this module for S3/R2, before it holds something that has to last.
+ */
+function defaultUploadDir(): string {
+  const serverless = process.env.VERCEL ?? process.env.AWS_LAMBDA_FUNCTION_NAME;
+  return serverless ? path.join(tmpdir(), "weshort-uploads") : path.join(process.cwd(), ".uploads");
+}
+
+/*
+ * The `turbopackIgnore` comments below are not decoration. The bundler traces
+ * filesystem calls to decide what to ship, and a path it cannot resolve at
+ * build time makes it give up and include the whole project — every source
+ * file and all of `public/` — in the server bundle. These paths are only known
+ * at runtime, so it is told not to follow them.
+ */
+export const UPLOAD_DIR = process.env.UPLOAD_DIR ?? defaultUploadDir();
+const INDEX_FILE = path.join(/* turbopackIgnore: true */ UPLOAD_DIR, "index.json");
 
 export const extensionOf = (name: string) => name.split(".").pop()?.toLowerCase() ?? "";
 
@@ -94,11 +117,12 @@ async function persist(index: Index): Promise<void> {
 
 export function filePathFor(asset: UploadAsset): string {
   const ext = extensionOf(asset.fileName);
-  return path.join(UPLOAD_DIR, ext ? `${asset.id}.${ext}` : asset.id);
+  return path.join(/* turbopackIgnore: true */ UPLOAD_DIR, ext ? `${asset.id}.${ext}` : asset.id);
 }
 
 const partPathFor = (asset: UploadAsset) => `${filePathFor(asset)}.part`;
-export const thumbPathFor = (id: string) => path.join(UPLOAD_DIR, `${id}.thumb.jpg`);
+export const thumbPathFor = (id: string) =>
+  path.join(/* turbopackIgnore: true */ UPLOAD_DIR, `${id}.thumb.jpg`);
 
 /* -------------------------------- records ------------------------------- */
 
@@ -186,7 +210,7 @@ export async function removeFiles(asset: UploadAsset): Promise<void> {
 
 export async function fileSizeOf(asset: UploadAsset): Promise<number> {
   try {
-    return (await stat(filePathFor(asset))).size;
+    return (await stat(/* turbopackIgnore: true */ filePathFor(asset))).size;
   } catch {
     return 0;
   }
@@ -257,7 +281,7 @@ export function webStreamFrom(source: NodeJS.ReadableStream & { destroy: () => v
 
 export async function sizeOfFile(file: string): Promise<number> {
   try {
-    return (await stat(file)).size;
+    return (await stat(/* turbopackIgnore: true */ file)).size;
   } catch {
     return 0;
   }
@@ -312,7 +336,7 @@ export function makeImageId(extension: string): string {
 
 /** Null for anything that is not an id we issued — never touches the disk. */
 export function imagePathFor(id: string): string | null {
-  return IMAGE_ID.test(id) ? path.join(UPLOAD_DIR, id) : null;
+  return IMAGE_ID.test(id) ? path.join(/* turbopackIgnore: true */ UPLOAD_DIR, id) : null;
 }
 
 export async function writeImage(id: string, bytes: Buffer): Promise<void> {
