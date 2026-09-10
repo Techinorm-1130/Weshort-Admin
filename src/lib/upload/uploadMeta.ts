@@ -1,3 +1,4 @@
+import { formatBytes } from "@/lib/format";
 import type { IconName } from "@/components/ui/Icon";
 import type { UploadConfig, UploadStatus } from "@/types";
 
@@ -71,8 +72,6 @@ export interface ValidationResult {
 
 const extensionOf = (name: string) => name.split(".").pop()?.toLowerCase() ?? "";
 
-const gb = (bytes: number) => `${(bytes / 1024 ** 3).toFixed(bytes % 1024 ** 3 === 0 ? 0 : 1)} GB`;
-
 /**
  * The quick check, so the admin hears about a wrong file before a byte moves.
  * The API runs the same rules again — this one is only for the waiting time.
@@ -103,7 +102,7 @@ export function validateFiles(
     if (config && file.size > config.maxSizeBytes) {
       result.rejected.push({
         name: file.name,
-        reason: `Larger than the ${gb(config.maxSizeBytes)} limit.`,
+        reason: `Larger than the ${formatBytes(config.maxSizeBytes)} limit.`,
       });
       continue;
     }

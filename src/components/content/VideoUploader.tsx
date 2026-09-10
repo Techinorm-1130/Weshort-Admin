@@ -175,9 +175,9 @@ export default function VideoUploader({
             title={`Drop your ${label.toLowerCase()} here`}
             hint={
               config
-                ? `${config.allowedExtensions.map((e) => e.toUpperCase()).join(", ")} up to ${Math.round(
-                    config.maxSizeBytes / 1024 ** 3,
-                  )} GB`
+                ? `${config.allowedExtensions.map((e) => e.toUpperCase()).join(", ")} up to ${formatBytes(
+                    config.maxSizeBytes,
+                  )}`
                 : "Checking upload limits…"
             }
             onFiles={() => undefined}

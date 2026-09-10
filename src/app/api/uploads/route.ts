@@ -7,6 +7,7 @@
 
 import { NextResponse } from "next/server";
 import { addAsset, listAssets, makeAssetId, uploadConfig, extensionOf } from "@/server/uploads/store";
+import { formatBytes } from "@/lib/format";
 import { contentsUsingAsset } from "@/lib/api/mock-db";
 import { CURRENT_USER } from "@/lib/session";
 import type { UploadAsset, UploadStatus } from "@/types";
@@ -105,7 +106,7 @@ async function postHandler(request: Request) {
   }
   if (sizeBytes > config.maxSizeBytes) {
     return NextResponse.json(
-      { message: `The file is larger than the ${Math.round(config.maxSizeBytes / 1024 ** 3)} GB limit` },
+      { message: `The file is larger than the ${formatBytes(config.maxSizeBytes)} limit` },
       { status: 413 },
     );
   }
