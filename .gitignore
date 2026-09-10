@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...and this one is opted in: it holds no secret, only the fact that a
+# deployment talks to its own /api rather than the in-browser mock.
+!.env.production
 
 # vercel
 .vercel
