@@ -26,6 +26,17 @@ import type { UploadAsset, UploadConfig, UploadStatus } from "@/types";
 const DEFAULT_EXTENSIONS = ["mp4", "mov", "mkv", "webm", "m4v"];
 const DEFAULT_MIME = ["video/mp4", "video/quicktime", "video/x-matroska", "video/webm"];
 
+/**
+ * Whether a blob store is attached.
+ *
+ * Not simply BLOB_READ_WRITE_TOKEN: on Vercel the SDK authenticates with an
+ * OIDC token it fetches at runtime, so the integration supplies BLOB_STORE_ID
+ * and no read-write token at all. Checking only for the token declared a
+ * perfectly good store missing.
+ */
+export const hasBlobStore = () =>
+  Boolean(process.env.BLOB_READ_WRITE_TOKEN ?? process.env.BLOB_STORE_ID);
+
 /** Limits come from here, not from the components. */
 export function uploadConfig(): UploadConfig {
   const list = (value: string | undefined, fallback: string[]) =>
@@ -53,7 +64,7 @@ export function uploadConfig(): UploadConfig {
    * goes through. Without one there is nowhere else to send them, and on a
    * serverless host that means the 4 MB ceiling stands.
    */
-  const transport = process.env.BLOB_READ_WRITE_TOKEN ? "blob" : "stream";
+  const transport = hasBlobStore() ? "blob" : "stream";
   const ceiling =
     transport === "blob" || !serverless ? 10 * 1024 * 1024 * 1024 : 4 * 1024 * 1024;
 

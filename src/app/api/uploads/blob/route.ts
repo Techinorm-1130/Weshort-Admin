@@ -12,7 +12,7 @@
 
 import { NextResponse } from "next/server";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
-import { uploadConfig } from "@/server/uploads/store";
+import { hasBlobStore, uploadConfig } from "@/server/uploads/store";
 import { cors, corsPreflight } from "@/server/uploads/cors";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ async function postHandler(request: Request) {
     return NextResponse.json({ message: "Malformed upload request" }, { status: 400 });
   }
 
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  if (!hasBlobStore()) {
     return NextResponse.json(
       {
         message:
