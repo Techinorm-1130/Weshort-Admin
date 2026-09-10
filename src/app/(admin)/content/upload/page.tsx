@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { contentApi, taxonomyApi } from "@/lib/api/resources";
 import { CURRENT_USER, IS_REVIEWER } from "@/lib/session";
 import { formatDate } from "@/lib/format";
@@ -142,6 +142,19 @@ export default function ContentUploadPage() {
 
     window.scrollTo({ top: Math.max(0, top), behavior: reduced ? "auto" : "smooth" });
   };
+
+  /**
+   * Handing the title to review replaces the whole form rather than moving
+   * between steps, so it never passes through `goTo`. Without this the waiting
+   * screen opens at whatever depth the last step was left at.
+   */
+  useEffect(() => {
+    if (!submitted || typeof window === "undefined") return;
+    const reduced =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
+  }, [submitted]);
 
   const next = () => {
     setVisited((v) => (v.includes(step) ? v : [...v, step]));
