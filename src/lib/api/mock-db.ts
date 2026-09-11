@@ -44,7 +44,7 @@ import {
   taxonomies,
 } from "./seed";
 import { UPLOADERS, buildContents, buildLandingPage, buildViewers } from "./seed-ott";
-import { hasBlobStore, readState, writeState } from "@/server/persist";
+import { hasBlobStore, listState, writeState } from "@/server/persist";
 
 type Row = { id: string };
 
@@ -138,32 +138,63 @@ const db: Store = ensureStore();
  * created on one serverless instance is not there when the next request lands
  * on another, which is what produced "Not found" halfway through a submission.
  */
+/** A stored title. Removal is recorded rather than simply absent — see below. */
+type StoredRow = ContentItem & { _deleted?: boolean };
+
+/** The catalogue every instance builds identically, before anyone changed it. */
+const seeded: ContentItem[] = buildContents();
+
 /**
- * How long a write here is trusted over whatever the store reports.
+ * Titles written by this instance in the last few seconds.
  *
  * A document read moments after being written can still be the version from
- * before, so re-reading immediately after approving a title handed back the
- * copy that still said "waiting for approval" — the change was saved, the
- * screen just showed the older answer until it was reloaded. Inside this window
- * the copy in memory is the newer one and is kept.
+ * before, so approving a title and then listing it handed back the copy that
+ * still said "waiting for approval" — saved correctly, displayed stale. The
+ * copy just written wins until the store has caught up.
  */
-const JUST_WROTE_MS = 5000;
-let wroteAt = 0;
+const FRESH_MS = 8000;
+const recent = new Map<string, { row: StoredRow; at: number }>();
 
+/**
+ * Rebuilds the catalogue from whatever every instance has written.
+ *
+ * One document per title, not one holding the lot: a whole-collection document
+ * has to be read, changed and written back, and two requests doing that at once
+ * lose one of the two changes. Rows nobody has touched come from the seed, so
+ * the demo catalogue is always there without having to be written first.
+ */
 async function hydrate(): Promise<void> {
   if (!hasBlobStore()) return;
-  if (Date.now() - wroteAt < JUST_WROTE_MS) return;
 
-  const shared = await readState<{ contents: ContentItem[] }>("contents");
-  if (!shared?.contents) return;
-  // rows with no id came from an older bug and cannot be addressed at all
-  db.contents = shared.contents.filter((row) => row.id);
+  const stored = await listState<StoredRow>("contents/");
+  const byId = new Map(stored.filter((row) => row.id).map((row) => [row.id, row]));
+
+  for (const [id, held] of recent) {
+    if (Date.now() - held.at < FRESH_MS) byId.set(id, held.row);
+    else recent.delete(id);
+  }
+
+  const changed = [...byId.values()].filter((row) => !row._deleted);
+  const untouched = seeded.filter((row) => !byId.has(row.id));
+
+  db.contents = [...changed, ...untouched].sort((a, b) =>
+    a.createdAt < b.createdAt ? 1 : -1,
+  );
 }
 
-async function flush(): Promise<void> {
+/**
+ * Stores the one title a request changed.
+ *
+ * A title that is gone is written as a tombstone rather than deleted outright,
+ * so a seeded row that was removed does not reappear on the next read.
+ */
+async function saveRow(id: string): Promise<void> {
   if (!hasBlobStore()) return;
-  wroteAt = Date.now();
-  await writeState("contents", { contents: db.contents });
+
+  const row = db.contents.find((c) => c.id === id);
+  const doc: StoredRow = row ?? ({ id, _deleted: true } as StoredRow);
+  recent.set(id, { row: doc, at: Date.now() });
+  await writeState(`contents/${id}`, doc);
 }
 
 /* ------------------------------- helpers ------------------------------- */
@@ -480,8 +511,15 @@ export async function handleMock<T>(method: string, rawPath: string, body?: unkn
 
   const result = await route<T>(method, rawPath, body);
 
-  // Anything that was not a read may have changed the shared collections.
-  if (method !== "GET") await flush();
+  // Only a write needs storing, and only the title it touched.
+  if (method !== "GET") {
+    const [only] = rawPath.split("?");
+    const [resource, id] = only.split("/").filter(Boolean);
+    if (resource === "contents") {
+      const touched = id && id !== "stats" ? id : (result as { id?: string } | null)?.id;
+      if (touched) await saveRow(touched);
+    }
+  }
 
   return result;
 }
