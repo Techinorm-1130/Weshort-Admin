@@ -29,13 +29,20 @@ const FAIL_MARKER = (process.env.UPLOAD_FAIL_MARKER ?? "fail-processing").toLowe
 
 const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
-function transcode(): Promise<void> {
+/**
+ * Stands in for the transcoder that does not exist yet.
+ *
+ * Skipped for a film already sitting in object storage: there is nothing here
+ * to work on, and waiting would be a delay invented for its own sake.
+ */
+function transcode(asset: UploadAsset): Promise<void> {
+  if (asset.blobUrl) return Promise.resolve();
   return new Promise((resolve) => setTimeout(resolve, PROCESSING_MS));
 }
 
 /** Marks an asset failed with a reason the admin can act on. */
-async function fail(asset: UploadAsset, error: string): Promise<void> {
-  await saveAsset(asset, { status: "failed", failedStage: "processing", error });
+async function fail(asset: UploadAsset, error: string): Promise<UploadAsset> {
+  return saveAsset(asset, { status: "failed", failedStage: "processing", error });
 }
 
 /**
@@ -45,9 +52,11 @@ async function fail(asset: UploadAsset, error: string): Promise<void> {
  * Takes the asset itself where the caller already has it, which is every case
  * that matters: the upload that just finished, and the retry that just reset it.
  */
-export async function runProcessing(input: UploadAsset | string): Promise<void> {
+export async function runProcessing(
+  input: UploadAsset | string,
+): Promise<UploadAsset | undefined> {
   const found = typeof input === "string" ? await getAsset(input) : input;
-  if (!found) return;
+  if (!found) return undefined;
 
   const processing = await saveAsset(found, {
     status: "processing",
@@ -57,43 +66,39 @@ export async function runProcessing(input: UploadAsset | string): Promise<void> 
 
   const stored = await fileSizeOf(processing);
   if (stored === 0) {
-    await fail(processing, "No file was stored for this upload. Upload the video again.");
-    return;
+    return fail(processing, "No file was stored for this upload. Upload the video again.");
   }
 
   // The browser tells us how big the file is before it sends it; a mismatch
   // means the transfer was cut short and the file is unusable.
   if (processing.sizeBytes > 0 && stored !== processing.sizeBytes) {
-    await fail(
+    return fail(
       processing,
       `Upload incomplete — ${mb(stored)} of ${mb(processing.sizeBytes)} arrived. Retry the upload.`,
     );
-    return;
   }
 
   const config = uploadConfig();
   const ext = extensionOf(processing.fileName);
   if (!config.allowedExtensions.includes(ext)) {
-    await fail(
+    return fail(
       processing,
       `Unsupported container ".${ext}". Supported: ${config.allowedExtensions.join(", ")}.`,
     );
-    return;
   }
 
   if (FAIL_MARKER && processing.fileName.toLowerCase().includes(FAIL_MARKER)) {
-    await fail(processing, "Invalid video codec — the pipeline could not decode the video track.");
-    return;
+    return fail(processing, "Invalid video codec — the pipeline could not decode the video track.");
   }
 
-  await transcode();
+  await transcode(processing);
 
   // A delete or cancel while this was running wins. Only that is worth a read:
   // anything else and the copy in hand is the one to trust.
   const current = await getAsset(processing.id);
-  if (current?.status === "cancelled") return;
+  if (current?.status === "cancelled") return current;
 
-  await saveAsset(processing, {
+  return saveAsset(processing, {
     status: "ready",
     readyAt: new Date().toISOString(),
     failedStage: "",

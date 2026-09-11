@@ -138,8 +138,22 @@ const db: Store = ensureStore();
  * created on one serverless instance is not there when the next request lands
  * on another, which is what produced "Not found" halfway through a submission.
  */
+/**
+ * How long a write here is trusted over whatever the store reports.
+ *
+ * A document read moments after being written can still be the version from
+ * before, so re-reading immediately after approving a title handed back the
+ * copy that still said "waiting for approval" — the change was saved, the
+ * screen just showed the older answer until it was reloaded. Inside this window
+ * the copy in memory is the newer one and is kept.
+ */
+const JUST_WROTE_MS = 5000;
+let wroteAt = 0;
+
 async function hydrate(): Promise<void> {
   if (!hasBlobStore()) return;
+  if (Date.now() - wroteAt < JUST_WROTE_MS) return;
+
   const shared = await readState<{ contents: ContentItem[] }>("contents");
   if (!shared?.contents) return;
   // rows with no id came from an older bug and cannot be addressed at all
@@ -148,6 +162,7 @@ async function hydrate(): Promise<void> {
 
 async function flush(): Promise<void> {
   if (!hasBlobStore()) return;
+  wroteAt = Date.now();
   await writeState("contents", { contents: db.contents });
 }
 

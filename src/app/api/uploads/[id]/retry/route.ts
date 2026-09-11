@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { fileSizeOf, getAsset, updateAsset } from "@/server/uploads/store";
-import { queueProcessing } from "@/server/uploads/processing";
+import { runProcessing } from "@/server/uploads/processing";
 import { cors, corsPreflight } from "@/server/uploads/cors";
 
 /**
@@ -24,9 +24,10 @@ async function postHandler(_request: Request, ctx: Ctx) {
   }
 
   const restarted = await updateAsset(id, { status: "uploaded", failedStage: "", error: "" });
-  if (restarted) queueProcessing(restarted);
+  // run it here, not afterwards: work left behind a response does not resume
+  const finished = restarted ? await runProcessing(restarted) : undefined;
   // what was just written, rather than a re-read that can still be the old copy
-  return NextResponse.json(restarted);
+  return NextResponse.json(finished ?? restarted);
 }
 
 /* The public site calls these from another origin. */
