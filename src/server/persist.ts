@@ -97,10 +97,16 @@ export async function listState<T>(prefix: string): Promise<T[]> {
 
     // collected rather than mapped: a document that cannot be read is skipped,
     // and Promise.all over a nullable generic does not narrow cleanly
+    // Every one of these needs the same cache bypass a single read gets. Without
+    // it a list keeps handing back the copies from before the last write, which
+    // is why an approved title still read "waiting" for several reloads.
+    const stamp = Date.now();
+
     const docs: T[] = [];
     await Promise.all(
       blobs.map(async (blob) => {
-        const response = await fetch(blob.url, { cache: "no-store" });
+        const fresh = `${blob.url}${blob.url.includes("?") ? "&" : "?"}t=${stamp}`;
+        const response = await fetch(fresh, { cache: "no-store" });
         if (response.ok) docs.push((await response.json()) as T);
       }),
     );
