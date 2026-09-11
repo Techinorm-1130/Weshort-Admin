@@ -20,7 +20,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <div className="lg:pl-[332px]">
           <Topbar onOpenMenu={() => setSidebarOpen(true)} />
-          <main className="mx-auto w-full max-w-[1440px] px-4 py-5 lg:px-6">{children}</main>
+          <main className="mx-auto w-full max-w-[1440px] px-4 py-5 lg:px-6">
+            {children}
+            {/* room for the floating upload dock, so it covers nothing */}
+            <div aria-hidden style={{ height: "var(--upload-dock-space, 0px)" }} />
+          </main>
         </div>
 
         <UploadDock />

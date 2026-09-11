@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { formatBytes } from "@/lib/format";
 import { UPLOAD_STATUS_TONES, formatEta, formatSpeed, uploadStatusLabel } from "@/lib/upload/uploadMeta";
@@ -13,10 +14,42 @@ import { useUploadManager } from "./UploadManager";
  *
  * It sits in the admin layout so it survives navigation: start ten uploads,
  * walk off to Users, and they keep going with the numbers still ticking here.
+ *
+ * Floating over the page put it on top of whatever was at the bottom right of
+ * it — which, on the upload wizard, is Continue. It now reports its own height
+ * so the page can leave that much room underneath itself; nothing is covered,
+ * whether it is showing one collapsed line or a list of ten.
  */
 export default function UploadDock() {
   const router = useRouter();
   const { items, collapsed, setCollapsed, cancel, retry, remove, requestOpen } = useUploadManager();
+  const box = useRef<HTMLDivElement>(null);
+
+  /*
+   * How much room the page has to keep clear.
+   *
+   * Measured rather than assumed: the dock is a different height collapsed,
+   * expanded, and expanded with a failure showing a retry button under it.
+   */
+  useEffect(() => {
+    const root = document.documentElement;
+    const node = box.current;
+    if (!node) {
+      root.style.setProperty("--upload-dock-space", "0px");
+      return;
+    }
+
+    const measure = () =>
+      root.style.setProperty("--upload-dock-space", `${node.offsetHeight + 16}px`);
+    measure();
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      root.style.setProperty("--upload-dock-space", "0px");
+    };
+  }, [items.length, collapsed]);
 
   if (!items.length) return null;
 
@@ -36,7 +69,7 @@ export default function UploadDock() {
     .join(" · ");
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-[min(380px,calc(100vw-2rem))]">
+    <div ref={box} className="fixed bottom-4 right-4 z-50 w-[min(380px,calc(100vw-2rem))]">
       <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-pop)]">
         <button
           type="button"

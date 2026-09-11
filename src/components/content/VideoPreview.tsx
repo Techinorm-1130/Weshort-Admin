@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { uploadApi } from "@/lib/upload/client";
+import { uploadStatusLabel } from "@/lib/upload/uploadMeta";
 import { formatBytes, formatDuration } from "@/lib/format";
 import Icon from "@/components/ui/Icon";
 import type { VideoAsset } from "@/types";
@@ -22,6 +23,12 @@ import type { VideoAsset } from "@/types";
  * through the stream route. The route only redirects to the same place, and a
  * player follows that redirect on every seek — so each drag of the scrub bar
  * was costing a function invocation to be told where the file already was.
+ *
+ * The pipeline is asked about the file before any of this is shown, because
+ * the copy of the asset kept on the title is a snapshot taken when it was
+ * attached and can say "ready" about an upload that never received its bytes.
+ * Mounting a player against that gives a dead control bar and an error code
+ * that blames the codec for a file the server never had.
  *
  * Where it plays from is settled BEFORE the element is mounted, never after.
  * Handing a <video> a new src while it is loading aborts that load, and Chrome
@@ -59,17 +66,30 @@ export default function VideoPreview({
     .filter(Boolean)
     .join(" · ");
 
-  /** Finds where the file is, then mounts the player on that one address. */
+  /** Asks the pipeline where the file is, then mounts the player on it. */
   const open = async () => {
     setOpening(true);
-    let target = routeUrl;
+    setFailed("");
+
     try {
       const found = await uploadApi.get(asset.id);
-      if (found.blobUrl) target = found.blobUrl;
+
+      // The truth about the bytes lives here, not on the title.
+      if (found.status !== "ready") {
+        setFailed(
+          found.status === "failed"
+            ? found.error || "This upload failed, so there is nothing to play."
+            : `This upload never finished — it is still ${uploadStatusLabel(found.status).toLowerCase()}. It has to be uploaded again before it can be watched.`,
+        );
+        setOpening(false);
+        return;
+      }
+
+      setSrc(found.blobUrl || routeUrl);
     } catch {
-      /* the stream route still stands in — no need to say anything */
+      // the pipeline could not be reached; the stream route still stands in
+      setSrc(routeUrl);
     }
-    setSrc(target);
     setOpening(false);
   };
 
@@ -94,9 +114,9 @@ export default function VideoPreview({
             const code = video.current?.error?.code;
             setFailed(
               code === 4
-                ? "This browser cannot decode the file. Open it in a new tab to download it."
+                ? "Nothing playable came back for this file — it is either missing from storage or in a format this browser cannot decode."
                 : code === 2
-                  ? "The file could not be fetched. Check the upload still exists in storage."
+                  ? "The connection dropped while fetching the file."
                   : "Playback failed.",
             );
           }}
@@ -126,7 +146,11 @@ export default function VideoPreview({
         <img src={poster} alt="" className="absolute inset-0 h-full w-full object-cover opacity-60" />
       ) : null}
 
-      {ready && routeUrl ? (
+      {failed ? (
+        <p className="absolute inset-0 flex items-center justify-center px-5 text-center text-[12px] leading-relaxed text-white/75">
+          {failed}
+        </p>
+      ) : ready && routeUrl ? (
         <button
           type="button"
           onClick={() => void open()}
