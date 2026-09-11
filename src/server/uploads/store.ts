@@ -19,7 +19,7 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { ReadableStream as WebReadableStream } from "node:stream/web";
 import { del } from "@vercel/blob";
-import { hasBlobStore, readState, writeState } from "@/server/persist";
+import { deleteState, hasBlobStore, listState, readState, writeState } from "@/server/persist";
 import type { UploadAsset, UploadConfig, UploadStatus } from "@/types";
 
 /* -------------------------------- config -------------------------------- */
@@ -103,19 +103,6 @@ type Index = { assets: UploadAsset[] };
 const globalRef = globalThis as unknown as { __weshortUploads?: Index };
 
 async function load(): Promise<Index> {
-  /*
-   * With a shared store the index is read every time, not cached in memory: the
-   * instance answering this request may never have seen the asset the last one
-   * registered, which is exactly how an upload went missing between being
-   * created and being attached.
-   */
-  if (hasBlobStore()) {
-    const shared = await readState<Index>("uploads");
-    const index = { assets: shared?.assets ?? [] };
-    globalRef.__weshortUploads = index;
-    return index;
-  }
-
   if (globalRef.__weshortUploads) return globalRef.__weshortUploads;
 
   await mkdir(UPLOAD_DIR, { recursive: true });
@@ -145,11 +132,6 @@ async function load(): Promise<Index> {
 let writing: Promise<void> = Promise.resolve();
 
 async function persist(index: Index): Promise<void> {
-  if (hasBlobStore()) {
-    await writeState("uploads", { assets: index.assets });
-    return;
-  }
-
   writing = writing.then(async () => {
     await mkdir(UPLOAD_DIR, { recursive: true });
     await writeFile(INDEX_FILE, JSON.stringify({ assets: index.assets }, null, 2), "utf8");
@@ -170,17 +152,38 @@ export const thumbPathFor = (id: string) =>
 
 /* -------------------------------- records ------------------------------- */
 
+/*
+ * Shared storage keeps one document per asset rather than one index holding all
+ * of them. An index has to be read, changed and written back, and two requests
+ * doing that at the same moment lose one of the two changes — which is what
+ * happened when a film and its trailer were registered together: both were
+ * accepted, and only the second survived.
+ *
+ * On a single machine the index file is still fine, because there is only ever
+ * one process reading it.
+ */
+const assetDoc = (id: string) => `uploads/${id}`;
+
 export async function listAssets(): Promise<UploadAsset[]> {
+  if (hasBlobStore()) {
+    const assets = await listState<UploadAsset>("uploads/");
+    return assets.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  }
   const index = await load();
   return index.assets;
 }
 
 export async function getAsset(id: string): Promise<UploadAsset | undefined> {
+  if (hasBlobStore()) return (await readState<UploadAsset>(assetDoc(id))) ?? undefined;
   const index = await load();
   return index.assets.find((a) => a.id === id);
 }
 
 export async function addAsset(asset: UploadAsset): Promise<UploadAsset> {
+  if (hasBlobStore()) {
+    await writeState(assetDoc(asset.id), asset);
+    return asset;
+  }
   const index = await load();
   index.assets.unshift(asset);
   await persist(index);
@@ -191,6 +194,13 @@ export async function updateAsset(
   id: string,
   patch: Partial<UploadAsset>,
 ): Promise<UploadAsset | undefined> {
+  if (hasBlobStore()) {
+    const current = await readState<UploadAsset>(assetDoc(id));
+    if (!current) return undefined;
+    const next = { ...current, ...patch };
+    await writeState(assetDoc(id), next);
+    return next;
+  }
   const index = await load();
   const asset = index.assets.find((a) => a.id === id);
   if (!asset) return undefined;
@@ -200,6 +210,13 @@ export async function updateAsset(
 }
 
 export async function removeAsset(id: string): Promise<boolean> {
+  if (hasBlobStore()) {
+    const asset = await readState<UploadAsset>(assetDoc(id));
+    if (!asset) return false;
+    await removeFiles(asset);
+    await deleteState(assetDoc(id));
+    return true;
+  }
   const index = await load();
   const asset = index.assets.find((a) => a.id === id);
   if (!asset) return false;

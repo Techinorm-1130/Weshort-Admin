@@ -17,7 +17,7 @@
  * Server-only: never import this from a client component.
  * ------------------------------------------------------------------------ */
 
-import { head, put } from "@vercel/blob";
+import { del, head, list, put } from "@vercel/blob";
 
 /**
  * Whether there is anywhere shared to write.
@@ -61,5 +61,44 @@ export async function writeState<T>(name: string, data: T): Promise<void> {
     });
   } catch {
     /* the request itself still succeeded; losing the write is not worth failing it */
+  }
+}
+
+export async function deleteState(name: string): Promise<void> {
+  if (!hasBlobStore()) return;
+  try {
+    const found = await head(pathFor(name));
+    await del(found.url);
+  } catch {
+    /* already gone */
+  }
+}
+
+/**
+ * Every document under a prefix.
+ *
+ * Collections are kept as one document per row rather than one document for the
+ * whole list, because a list has to be read, changed and written back — and two
+ * requests doing that at once lose one of the two changes. Uploading a film and
+ * its trailer together did exactly that.
+ */
+export async function listState<T>(prefix: string): Promise<T[]> {
+  if (!hasBlobStore()) return [];
+
+  try {
+    const { blobs } = await list({ prefix: pathFor(prefix).replace(/\.json$/, "") });
+
+    // collected rather than mapped: a document that cannot be read is skipped,
+    // and Promise.all over a nullable generic does not narrow cleanly
+    const docs: T[] = [];
+    await Promise.all(
+      blobs.map(async (blob) => {
+        const response = await fetch(blob.url, { cache: "no-store" });
+        if (response.ok) docs.push((await response.json()) as T);
+      }),
+    );
+    return docs;
+  } catch {
+    return [];
   }
 }
