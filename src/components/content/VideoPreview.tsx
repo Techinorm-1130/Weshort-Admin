@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { uploadApi } from "@/lib/upload/client";
 import { formatBytes, formatDuration } from "@/lib/format";
 import Icon from "@/components/ui/Icon";
@@ -17,6 +17,11 @@ import type { VideoAsset } from "@/types";
  * The <video> element is only mounted once it is asked for. Mounting it with
  * the drawer would have every open of a title start pulling the film down,
  * including the ones the admin is only checking the metadata of.
+ *
+ * A film held in object storage is played from there directly rather than
+ * through the stream route. The route only redirects to the same place, and a
+ * player follows that redirect on every seek — so each drag of the scrub bar
+ * was costing a function invocation to be told where the file already was.
  */
 export default function VideoPreview({
   asset,
@@ -29,13 +34,42 @@ export default function VideoPreview({
   label?: string;
 }) {
   const [playing, setPlaying] = useState(false);
+  const [direct, setDirect] = useState<string | null>(null);
+  const [failed, setFailed] = useState("");
+  const video = useRef<HTMLVideoElement>(null);
+
+  const assetId = asset?.id ?? "";
+  const canPlay = asset?.state === "ready";
+
+  /*
+   * Where the bytes actually are.
+   *
+   * Asked for only once play is pressed, and only for a film that is ready:
+   * a drawer full of episodes should not fire a request per episode for
+   * something nobody has opened.
+   */
+  useEffect(() => {
+    if (!playing || !assetId || direct) return;
+    let alive = true;
+    uploadApi
+      .get(assetId)
+      .then((found) => {
+        if (alive && found.blobUrl) setDirect(found.blobUrl);
+      })
+      .catch(() => {
+        /* the stream route still stands in — no need to say anything */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [playing, assetId, direct]);
 
   if (!asset) return null;
 
   // The asset id is the one the upload pipeline knows; previewUrl is only a
   // fallback for a record that predates it.
-  const src = asset.id ? uploadApi.streamUrl(asset.id) : asset.previewUrl ?? "";
-  const ready = asset.state === "ready";
+  const src = direct || (asset.id ? uploadApi.streamUrl(asset.id) : asset.previewUrl ?? "");
+  const ready = canPlay;
   const detail = [
     asset.durationSec ? formatDuration(asset.durationSec) : "",
     asset.sizeBytes ? formatBytes(asset.sizeBytes) : "",
@@ -46,14 +80,49 @@ export default function VideoPreview({
 
   if (playing && src) {
     return (
-      <video
-        controls
-        autoPlay
-        preload="metadata"
-        src={src}
-        poster={poster ?? undefined}
-        className="aspect-video w-full rounded-lg bg-black"
-      />
+      <div>
+        <video
+          ref={video}
+          controls
+          autoPlay
+          playsInline
+          preload="metadata"
+          src={src}
+          poster={poster ?? undefined}
+          onError={() => {
+            /*
+             * Say what went wrong instead of showing a still frame and a dead
+             * control bar. The codes are the only detail the element gives,
+             * and knowing which one it is separates "the file never arrived"
+             * from "this browser cannot decode it".
+             */
+            const code = video.current?.error?.code;
+            setFailed(
+              code === 4
+                ? "This browser cannot decode the file. Open it in a new tab to download it."
+                : code === 2
+                  ? "The file could not be fetched. Check the upload still exists in storage."
+                  : "Playback failed.",
+            );
+          }}
+          className="aspect-video w-full rounded-lg bg-black"
+        />
+
+        {failed ? (
+          <p className="mt-1.5 text-[12px] text-danger">{failed}</p>
+        ) : null}
+
+        {/* always a way to watch it, whatever the embedded player makes of it */}
+        <a
+          href={src}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-1.5 inline-flex items-center gap-1 text-[12px] text-muted hover:text-ink"
+        >
+          Open in a new tab
+          <Icon name="arrow-up-right" size={12} />
+        </a>
+      </div>
     );
   }
 
