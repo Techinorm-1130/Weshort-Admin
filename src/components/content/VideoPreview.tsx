@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { uploadApi } from "@/lib/upload/client";
 import { formatBytes, formatDuration } from "@/lib/format";
 import Icon from "@/components/ui/Icon";
@@ -22,6 +22,12 @@ import type { VideoAsset } from "@/types";
  * through the stream route. The route only redirects to the same place, and a
  * player follows that redirect on every seek — so each drag of the scrub bar
  * was costing a function invocation to be told where the file already was.
+ *
+ * Where it plays from is settled BEFORE the element is mounted, never after.
+ * Handing a <video> a new src while it is loading aborts that load, and Chrome
+ * reports the abort as MEDIA_ERR_SRC_NOT_SUPPORTED — the same code a file it
+ * genuinely cannot decode produces. Whether the lookup won the race decided
+ * whether the film played, which is why it played only sometimes.
  */
 export default function VideoPreview({
   asset,
@@ -33,43 +39,18 @@ export default function VideoPreview({
   poster?: string | null;
   label?: string;
 }) {
-  const [playing, setPlaying] = useState(false);
-  const [direct, setDirect] = useState<string | null>(null);
+  const [src, setSrc] = useState("");
+  const [opening, setOpening] = useState(false);
   const [failed, setFailed] = useState("");
   const video = useRef<HTMLVideoElement>(null);
 
-  const assetId = asset?.id ?? "";
-  const canPlay = asset?.state === "ready";
-
-  /*
-   * Where the bytes actually are.
-   *
-   * Asked for only once play is pressed, and only for a film that is ready:
-   * a drawer full of episodes should not fire a request per episode for
-   * something nobody has opened.
-   */
-  useEffect(() => {
-    if (!playing || !assetId || direct) return;
-    let alive = true;
-    uploadApi
-      .get(assetId)
-      .then((found) => {
-        if (alive && found.blobUrl) setDirect(found.blobUrl);
-      })
-      .catch(() => {
-        /* the stream route still stands in — no need to say anything */
-      });
-    return () => {
-      alive = false;
-    };
-  }, [playing, assetId, direct]);
-
   if (!asset) return null;
 
-  // The asset id is the one the upload pipeline knows; previewUrl is only a
-  // fallback for a record that predates it.
-  const src = direct || (asset.id ? uploadApi.streamUrl(asset.id) : asset.previewUrl ?? "");
-  const ready = canPlay;
+  const ready = asset.state === "ready";
+  // previewUrl is only a fallback for a record made before the asset id was
+  // the thing the pipeline keyed on
+  const routeUrl = asset.id ? uploadApi.streamUrl(asset.id) : asset.previewUrl ?? "";
+
   const detail = [
     asset.durationSec ? formatDuration(asset.durationSec) : "",
     asset.sizeBytes ? formatBytes(asset.sizeBytes) : "",
@@ -78,7 +59,21 @@ export default function VideoPreview({
     .filter(Boolean)
     .join(" · ");
 
-  if (playing && src) {
+  /** Finds where the file is, then mounts the player on that one address. */
+  const open = async () => {
+    setOpening(true);
+    let target = routeUrl;
+    try {
+      const found = await uploadApi.get(asset.id);
+      if (found.blobUrl) target = found.blobUrl;
+    } catch {
+      /* the stream route still stands in — no need to say anything */
+    }
+    setSrc(target);
+    setOpening(false);
+  };
+
+  if (src) {
     return (
       <div>
         <video
@@ -92,9 +87,9 @@ export default function VideoPreview({
           onError={() => {
             /*
              * Say what went wrong instead of showing a still frame and a dead
-             * control bar. The codes are the only detail the element gives,
-             * and knowing which one it is separates "the file never arrived"
-             * from "this browser cannot decode it".
+             * control bar. The code is the only detail the element gives, and
+             * it separates "the file never arrived" from "this browser cannot
+             * decode it".
              */
             const code = video.current?.error?.code;
             setFailed(
@@ -108,9 +103,7 @@ export default function VideoPreview({
           className="aspect-video w-full rounded-lg bg-black"
         />
 
-        {failed ? (
-          <p className="mt-1.5 text-[12px] text-danger">{failed}</p>
-        ) : null}
+        {failed ? <p className="mt-1.5 text-[12px] text-danger">{failed}</p> : null}
 
         {/* always a way to watch it, whatever the embedded player makes of it */}
         <a
@@ -133,16 +126,17 @@ export default function VideoPreview({
         <img src={poster} alt="" className="absolute inset-0 h-full w-full object-cover opacity-60" />
       ) : null}
 
-      {ready && src ? (
+      {ready && routeUrl ? (
         <button
           type="button"
-          onClick={() => setPlaying(true)}
-          className="group absolute inset-0 flex flex-col items-center justify-center gap-2 text-white transition hover:bg-black/25"
+          onClick={() => void open()}
+          disabled={opening}
+          className="group absolute inset-0 flex flex-col items-center justify-center gap-2 text-white transition hover:bg-black/25 disabled:cursor-wait"
         >
           <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/50 backdrop-blur-sm transition group-hover:bg-white/25">
             <Icon name="play" size={20} />
           </span>
-          <span className="text-[12px] font-semibold">{label}</span>
+          <span className="text-[12px] font-semibold">{opening ? "Opening…" : label}</span>
           {detail ? <span className="text-[11px] text-white/70">{detail}</span> : null}
         </button>
       ) : (
