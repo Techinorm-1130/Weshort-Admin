@@ -36,8 +36,15 @@ export async function readState<T>(name: string): Promise<T | null> {
 
   try {
     const found = await head(pathFor(name));
-    // `no-store` matters: this is the one thing that must never be a cached copy
-    const response = await fetch(found.url, { cache: "no-store" });
+    /*
+     * The unique parameter is not decoration. These URLs are served from a
+     * cache, and asking for one that was written a moment ago hands back the
+     * copy from before the write — which is how a film that had finished
+     * uploading kept reporting itself as still waiting. A URL nothing has seen
+     * before cannot be answered from a cache.
+     */
+    const fresh = `${found.url}${found.url.includes("?") ? "&" : "?"}t=${Date.now()}`;
+    const response = await fetch(fresh, { cache: "no-store" });
     if (!response.ok) return null;
     return (await response.json()) as T;
   } catch {

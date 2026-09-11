@@ -43,7 +43,7 @@ async function postHandler(request: Request, ctx: Ctx) {
     return NextResponse.json({ message: "No bytes were reported" }, { status: 400 });
   }
 
-  await updateAsset(id, {
+  const attached = await updateAsset(id, {
     blobUrl: url,
     status: "uploaded",
     receivedBytes: received,
@@ -55,7 +55,9 @@ async function postHandler(request: Request, ctx: Ctx) {
   // Processing runs on its own; the client polls for the result.
   queueProcessing(id);
 
-  return NextResponse.json(await getAsset(id));
+  // What was just written, not a re-read of it: reading back a document this
+  // fresh can still return the copy from before the write.
+  return NextResponse.json(attached);
 }
 
 export const POST = cors(postHandler);

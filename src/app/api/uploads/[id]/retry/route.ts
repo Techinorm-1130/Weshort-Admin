@@ -23,9 +23,10 @@ async function postHandler(_request: Request, ctx: Ctx) {
     );
   }
 
-  await updateAsset(id, { status: "uploaded", failedStage: "", error: "" });
+  const restarted = await updateAsset(id, { status: "uploaded", failedStage: "", error: "" });
   queueProcessing(id);
-  return NextResponse.json(await getAsset(id));
+  // what was just written, rather than a re-read that can still be the old copy
+  return NextResponse.json(restarted);
 }
 
 /* The public site calls these from another origin. */
