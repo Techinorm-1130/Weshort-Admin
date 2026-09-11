@@ -53,7 +53,7 @@ async function postHandler(request: Request, ctx: Ctx) {
   });
 
   // Processing runs on its own; the client polls for the result.
-  queueProcessing(id);
+  if (attached) queueProcessing(attached);
 
   // What was just written, not a re-read of it: reading back a document this
   // fresh can still return the copy from before the write.

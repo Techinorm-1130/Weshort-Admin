@@ -209,6 +209,37 @@ export async function updateAsset(
   return asset;
 }
 
+/**
+ * Writes an asset from a copy already in hand.
+ *
+ * `updateAsset` reads the stored document first and merges onto that, which is
+ * only safe if the read is current. Shortly after a write it is not: the older
+ * version comes back, the patch lands on it, and everything the previous write
+ * added is erased. That is how a film arrived with its storage URL and then, a
+ * moment later, had none.
+ *
+ * A flow that already holds the asset threads it through instead of fetching it
+ * again, so nothing depends on a read settling in time.
+ */
+export async function saveAsset(
+  asset: UploadAsset,
+  patch: Partial<UploadAsset> = {},
+): Promise<UploadAsset> {
+  const next = { ...asset, ...patch };
+
+  if (hasBlobStore()) {
+    await writeState(assetDoc(next.id), next);
+    return next;
+  }
+
+  const index = await load();
+  const at = index.assets.findIndex((a) => a.id === next.id);
+  if (at >= 0) index.assets[at] = next;
+  else index.assets.unshift(next);
+  await persist(index);
+  return next;
+}
+
 export async function removeAsset(id: string): Promise<boolean> {
   if (hasBlobStore()) {
     const asset = await readState<UploadAsset>(assetDoc(id));

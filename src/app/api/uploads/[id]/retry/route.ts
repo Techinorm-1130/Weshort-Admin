@@ -24,7 +24,7 @@ async function postHandler(_request: Request, ctx: Ctx) {
   }
 
   const restarted = await updateAsset(id, { status: "uploaded", failedStage: "", error: "" });
-  queueProcessing(id);
+  if (restarted) queueProcessing(restarted);
   // what was just written, rather than a re-read that can still be the old copy
   return NextResponse.json(restarted);
 }
