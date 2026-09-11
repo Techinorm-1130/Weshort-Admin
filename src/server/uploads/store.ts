@@ -19,6 +19,7 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { ReadableStream as WebReadableStream } from "node:stream/web";
 import { del } from "@vercel/blob";
+import { hasBlobStore, readState, writeState } from "@/server/persist";
 import type { UploadAsset, UploadConfig, UploadStatus } from "@/types";
 
 /* -------------------------------- config -------------------------------- */
@@ -26,20 +27,7 @@ import type { UploadAsset, UploadConfig, UploadStatus } from "@/types";
 const DEFAULT_EXTENSIONS = ["mp4", "mov", "mkv", "webm", "m4v"];
 const DEFAULT_MIME = ["video/mp4", "video/quicktime", "video/x-matroska", "video/webm"];
 
-/**
- * Whether client uploads can actually be issued.
- *
- * Specifically the read-write token, not merely a connected store. The SDK
- * authenticates most calls with an OIDC token it fetches at runtime on Vercel,
- * which is why the integration supplies BLOB_STORE_ID and no token — but
- * minting the short-lived token a browser uploads with is not one of those
- * calls, and it fails without a read-write token.
- *
- * Treating a store id as sufficient made this advertise a 10 GB ceiling it
- * could not honour, which is a worse failure than the small one it replaced:
- * the file would be accepted and then die at the token exchange.
- */
-export const hasBlobStore = () => Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+export { hasBlobStore } from "@/server/persist";
 
 /** Limits come from here, not from the components. */
 export function uploadConfig(): UploadConfig {
@@ -115,6 +103,19 @@ type Index = { assets: UploadAsset[] };
 const globalRef = globalThis as unknown as { __weshortUploads?: Index };
 
 async function load(): Promise<Index> {
+  /*
+   * With a shared store the index is read every time, not cached in memory: the
+   * instance answering this request may never have seen the asset the last one
+   * registered, which is exactly how an upload went missing between being
+   * created and being attached.
+   */
+  if (hasBlobStore()) {
+    const shared = await readState<Index>("uploads");
+    const index = { assets: shared?.assets ?? [] };
+    globalRef.__weshortUploads = index;
+    return index;
+  }
+
   if (globalRef.__weshortUploads) return globalRef.__weshortUploads;
 
   await mkdir(UPLOAD_DIR, { recursive: true });
@@ -144,6 +145,11 @@ async function load(): Promise<Index> {
 let writing: Promise<void> = Promise.resolve();
 
 async function persist(index: Index): Promise<void> {
+  if (hasBlobStore()) {
+    await writeState("uploads", { assets: index.assets });
+    return;
+  }
+
   writing = writing.then(async () => {
     await mkdir(UPLOAD_DIR, { recursive: true });
     await writeFile(INDEX_FILE, JSON.stringify({ assets: index.assets }, null, 2), "utf8");

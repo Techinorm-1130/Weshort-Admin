@@ -44,6 +44,7 @@ import {
   taxonomies,
 } from "./seed";
 import { UPLOADERS, buildContents, buildLandingPage, buildViewers } from "./seed-ott";
+import { hasBlobStore, readState, writeState } from "@/server/persist";
 
 type Row = { id: string };
 
@@ -125,6 +126,30 @@ function ensureStore(): Store {
 }
 
 const db: Store = ensureStore();
+
+/* ------------------------------ shared state ----------------------------- */
+
+/**
+ * The collections the public site writes to.
+ *
+ * Everything else here is seed data that every instance builds identically, so
+ * only what actually changes has to be shared. Read before a request is
+ * answered and written after one that changed something — without this a draft
+ * created on one serverless instance is not there when the next request lands
+ * on another, which is what produced "Not found" halfway through a submission.
+ */
+async function hydrate(): Promise<void> {
+  if (!hasBlobStore()) return;
+  const shared = await readState<{ contents: ContentItem[] }>("contents");
+  if (!shared?.contents) return;
+  // rows with no id came from an older bug and cannot be addressed at all
+  db.contents = shared.contents.filter((row) => row.id);
+}
+
+async function flush(): Promise<void> {
+  if (!hasBlobStore()) return;
+  await writeState("contents", { contents: db.contents });
+}
 
 /* ------------------------------- helpers ------------------------------- */
 
@@ -434,7 +459,19 @@ export function contentsUsingAsset(assetId: string): { id: string; title: string
   return out;
 }
 
-export function handleMock<T>(method: string, rawPath: string, body?: unknown): Promise<T> {
+export async function handleMock<T>(method: string, rawPath: string, body?: unknown): Promise<T> {
+  // Pick up whatever another instance may have written since the last request.
+  await hydrate();
+
+  const result = await route<T>(method, rawPath, body);
+
+  // Anything that was not a read may have changed the shared collections.
+  if (method !== "GET") await flush();
+
+  return result;
+}
+
+function route<T>(method: string, rawPath: string, body?: unknown): Promise<T> {
   const [path, query = ""] = rawPath.split("?");
   const params = new URLSearchParams(query);
   const segments = path.split("/").filter(Boolean);
