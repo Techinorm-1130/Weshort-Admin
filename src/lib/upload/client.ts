@@ -7,6 +7,7 @@
  * measured from those numbers. Nothing is ticked forward on a timer.
  * ------------------------------------------------------------------------ */
 
+import { upload as blobUpload } from "@vercel/blob/client";
 import type { UploadAsset, UploadConfig, UploadMedia } from "@/types";
 
 const BASE = "/api/uploads";
@@ -59,6 +60,14 @@ export const uploadApi = {
       : Promise.resolve([] as UploadAsset[]),
 
   get: (id: string) => json<UploadAsset>(`${BASE}/${id}`),
+
+  /** Records where a direct-to-storage upload landed, and starts processing. */
+  attach: (id: string, url: string, sizeBytes: number) =>
+    json<UploadAsset>(`${BASE}/${id}/attach`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, sizeBytes }),
+    }),
 
   create: (input: { fileName: string; sizeBytes: number; contentType: string; media: UploadMedia }) =>
     json<UploadAsset>(BASE, {
@@ -154,11 +163,65 @@ export interface Transfer {
  * PUTs the file with XMLHttpRequest — the only transport that reports upload
  * progress in every browser we target.
  */
-export function sendFile(
+/**
+ * Straight to object storage, with the function only issuing the token.
+ *
+ * A request that goes through the deployment is capped at 4.5 MB and is
+ * refused before any of our code runs — which is where the 413 on a 15 MB
+ * film came from. The browser uploads to storage itself, in parts, and then
+ * tells the API where it put it.
+ */
+function sendViaBlob(
   assetId: string,
   file: File,
   onProgress: (progress: TransferProgress) => void,
 ): Transfer {
+  const controller = new AbortController();
+  let lastAt = Date.now();
+  let lastLoaded = 0;
+  let speedBps = 0;
+
+  const promise = (async () => {
+    const result = await blobUpload(file.name, file, {
+      access: "public",
+      handleUploadUrl: `${BASE}/blob`,
+      contentType: file.type || "application/octet-stream",
+      // large files go up in parts, retried individually
+      multipart: true,
+      abortSignal: controller.signal,
+      onUploadProgress: ({ loaded, total, percentage }) => {
+        const now = Date.now();
+        const elapsed = (now - lastAt) / 1000;
+        if (elapsed >= 0.25) {
+          speedBps = (loaded - lastLoaded) / elapsed;
+          lastAt = now;
+          lastLoaded = loaded;
+        }
+        const remaining = total - loaded;
+        onProgress({
+          loaded,
+          total,
+          percent: Math.floor(percentage),
+          speedBps: Math.max(0, speedBps),
+          etaSec: speedBps > 0 ? Math.round(remaining / speedBps) : null,
+        });
+      },
+    });
+
+    return uploadApi.attach(assetId, result.url, file.size);
+  })();
+
+  return { promise, abort: () => controller.abort() };
+}
+
+export function sendFile(
+  assetId: string,
+  file: File,
+  onProgress: (progress: TransferProgress) => void,
+  config?: UploadConfig | null,
+): Transfer {
+  if (config?.transport === "blob") return sendViaBlob(assetId, file, onProgress);
+
   const xhr = new XMLHttpRequest();
   const startedAt = Date.now();
   let lastAt = startedAt;

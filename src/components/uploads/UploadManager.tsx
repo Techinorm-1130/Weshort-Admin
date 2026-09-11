@@ -172,10 +172,18 @@ export default function UploadManagerProvider({ children }: { children: React.Re
           handlers.current.get(item.localId)?.onAsset?.(asset);
         }
 
-        const transfer = sendFile(assetId, item.file, (progress) => {
-          patch(item.localId, { progress });
-          if (created) handlers.current.get(item.localId)?.onProgress?.(progress, created);
-        });
+        // the config decides whether these bytes go through the deployment or
+        // straight to storage; the ref is read here because the config lands
+        // after the first render
+        const transfer = sendFile(
+          assetId,
+          item.file,
+          (progress) => {
+            patch(item.localId, { progress });
+            if (created) handlers.current.get(item.localId)?.onProgress?.(progress, created);
+          },
+          configRef.current,
+        );
         transfers.current.set(item.localId, transfer);
 
         const uploaded = await transfer.promise;
