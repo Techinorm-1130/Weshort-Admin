@@ -245,12 +245,41 @@ export default function ContentLibraryPage() {
 
   const pendingCount = (members ?? []).reduce((n, m) => n + m.pending, 0);
 
+  /**
+   * Shows the outcome of a review straight away.
+   *
+   * The API answers with the reviewed title, so that is what the table is given
+   * — rather than asking for the list again a moment later. Storage takes a
+   * short while to settle, and a re-read that soon can still return the copy
+   * from before, which is what left an approved title reading "waiting for
+   * approval" until the page had been reloaded a few times.
+   *
+   * A title that no longer belongs in the view being filtered drops out of it.
+   */
+  const applyReview = (row: ContentItem) => {
+    list.setData((prev) => {
+      const page = prev ?? { items: [], total: 0, page: 1, perPage: 10 };
+      const filtered = (query.approval ?? "all") !== "all";
+      const belongs = !filtered || query.approval === row.approval.state;
+
+      return {
+        ...page,
+        items: belongs
+          ? page.items.map((r) => (r.id === row.id ? row : r))
+          : page.items.filter((r) => r.id !== row.id),
+        total: belongs ? page.total : Math.max(0, page.total - 1),
+      };
+    });
+    // the per-member totals behind the Pending badge
+    refreshMembers();
+  };
+
   const onApprove = async (item: ContentItem) => {
     const done = await approve.run(item.id);
     if (done) {
       toast.success(`"${item.title}" approved and ${done.status === "scheduled" ? "scheduled" : "published"}`);
       setToApprove(null);
-      refreshAll();
+      applyReview(done);
     }
   };
 
@@ -261,7 +290,7 @@ export default function ContentLibraryPage() {
       toast.success(`"${toReject.title}" was rejected`);
       setToReject(null);
       setRejectNote("");
-      refreshAll();
+      applyReview(done);
     }
   };
 
