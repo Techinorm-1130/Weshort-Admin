@@ -7,6 +7,7 @@ import { formatBytes, formatDate, formatDuration, labelOf, labelsOf } from "@/li
 import { AGE_RATINGS, AUDIO_LANGUAGES, CONTENT_CATEGORIES } from "@/lib/api/seed-ott";
 import type { ContentItem } from "@/types";
 import Drawer, { DrawerRow, DrawerSection } from "@/components/ui/Drawer";
+import VideoPreview from "./VideoPreview";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import { Avatar, Badge, Skeleton } from "@/components/ui/Primitives";
@@ -203,7 +204,20 @@ export default function ContentDetailsDrawer({
 
           {/* ----------------------------- media -------------------------- */}
           <DrawerSection title="Media">
-            <div className="rounded-lg border border-border px-3">
+            {/* the film itself, watchable before a decision is made on it */}
+            <VideoPreview
+              asset={item.video}
+              poster={displayableImage(item.thumbnail) || displayableImage(item.banner)}
+              label="Play the film"
+            />
+
+            {item.trailer ? (
+              <div className="mt-3">
+                <VideoPreview asset={item.trailer} label="Play the trailer" />
+              </div>
+            ) : null}
+
+            <div className="mt-3 rounded-lg border border-border px-3">
               <DrawerRow label="Main video">
                 {item.video ? `${item.video.name} · ${formatBytes(item.video.sizeBytes)}` : "—"}
               </DrawerRow>
@@ -232,16 +246,29 @@ export default function ContentDetailsDrawer({
                     </p>
                     <ul className="divide-y divide-line">
                       {season.episodes.map((episode) => (
-                        <li key={episode.id} className="flex items-center gap-3 px-3 py-2">
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-surface-2 text-[11px] font-semibold text-muted-strong">
-                            {episode.episodeNumber}
-                          </span>
-                          <span className="min-w-0 flex-1 truncate text-[13px] text-ink">
-                            {episode.title}
-                          </span>
-                          <span className="shrink-0 text-[11px] text-muted">
-                            {episode.durationSec ? formatDuration(episode.durationSec) : "—"}
-                          </span>
+                        <li key={episode.id} className="px-3 py-2">
+                          <div className="flex items-center gap-3">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-surface-2 text-[11px] font-semibold text-muted-strong">
+                              {episode.episodeNumber}
+                            </span>
+                            <span className="min-w-0 flex-1 truncate text-[13px] text-ink">
+                              {episode.title}
+                            </span>
+                            <span className="shrink-0 text-[11px] text-muted">
+                              {episode.durationSec ? formatDuration(episode.durationSec) : "—"}
+                            </span>
+                          </div>
+
+                          {/* a series is reviewed episode by episode */}
+                          {episode.video ? (
+                            <div className="mt-2">
+                              <VideoPreview
+                                asset={episode.video}
+                                poster={displayableImage(episode.thumbnail)}
+                                label={`Play episode ${episode.episodeNumber}`}
+                              />
+                            </div>
+                          ) : null}
                         </li>
                       ))}
                     </ul>
